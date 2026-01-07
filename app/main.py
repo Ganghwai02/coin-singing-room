@@ -2,11 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import engine, Base
+from app.api import users  # 추가!
 
 # DB 테이블 생성
 Base.metadata.create_all(bind=engine)
 
-# FastAPI 앱 생성
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.VERSION,
@@ -23,7 +23,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 헬스 체크
+# 라우터 등록
+app.include_router(users.router, prefix="/api/users", tags=["users"])  # 추가!
+
 @app.get("/")
 async def root():
     return {
@@ -35,9 +37,3 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
-
-# API 라우터는 다음 단계에서 추가
-# from app.api import songs, users, queue
-# app.include_router(songs.router, prefix="/api/songs", tags=["songs"])
-# app.include_router(users.router, prefix="/api/users", tags=["users"])
-# app.include_router(queue.router, prefix="/api/queue", tags=["queue"])
