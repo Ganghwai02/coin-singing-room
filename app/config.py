@@ -31,7 +31,9 @@ class Settings(BaseSettings):
         env_file = ".env"
         case_sensitive = True
 
-    # 전역 설정 객체
-    settings = Settings()
+    
+    
+# 전역 설정 객체
+settings = Settings()
 
 
