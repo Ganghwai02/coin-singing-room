@@ -26,9 +26,7 @@ class Settings(BaseSettings):
     LYRICS_PATH: str = "./storage/lyrics"
     RECORDINGS_PATH: str = "./storage/recordings"
     
-    # CORS (프론트엔드 연결)
-    CORS_ORIGINS: list = ["http://localhost:3000", "http://127.0.0.1:3000"]
-    
+
     class Config:
         env_file = ".env"
         case_sensitive = True
