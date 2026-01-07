@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import engine, Base
-from app.api import users  # 추가!
+from app.api import users, songs  # 추가!
 
 # DB 테이블 생성
 Base.metadata.create_all(bind=engine)
@@ -25,6 +25,8 @@ app.add_middleware(
 
 # 라우터 등록
 app.include_router(users.router, prefix="/api/users", tags=["users"])  # 추가!
+app.include_router(songs.router, prefix="/api/songs", tags=["songs"])  # 추가!
+
 
 @app.get("/")
 async def root():
