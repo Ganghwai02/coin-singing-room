@@ -227,7 +227,7 @@ async def play_song(
 
     # 2. 일일 재생 제한 체크
     if not current_user.is_premium:
-        # DB에 저장된 숫자를 실시간으로 확인
+        # DB에 저장된 숫자를 실시간으로 확인  
         if current_user.daily_song_count >= 3:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
