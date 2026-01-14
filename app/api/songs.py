@@ -218,15 +218,40 @@ async def play_song(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """곡 재생 시작 (일일 제한 체크)"""
+    """곡 재생 시작 (일일 제한 체크 로직 추가됨)"""
     
+    # 1. 곡 존재 여부 확인
     song = db.query(Song).filter(Song.id == song_id).first()
-    
     if not song:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="곡을 찾을 수 없습니다"
         )
+
+    # 2. [추가] 일일 재생 제한 체크
+    # 프리미엄 사용자가 아닌 경우에만 체크합니다.
+    if not current_user.is_premium:
+        if current_user.daily_song_count >= 3:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="일일 무료 곡 수를 모두 사용하셨습니다. 프리미엄을 구독해 보세요!"
+            )
+
+    # 3. [추가] 재생 횟수 카운트 증가
+    current_user.daily_song_count += 1
+    
+    # 4. DB에 변경사항 저장
+    db.commit()
+    db.refresh(current_user) # 최신 정보로 갱신
+
+    # 5. 결과 반환
+    return {
+        "id": song.id,
+        "title": song.title,
+        "artist": song.artist,
+        "message": f"'{song.title}' 재생을 시작합니다!",
+        "remaining_plays": 999 if current_user.is_premium else 3 - current_user.daily_song_count
+    }
     
     # 프리미엄 곡 체크
     if song.is_premium and not current_user.is_premium:
