@@ -5,7 +5,7 @@ python-multipart==0.0.6
 
 # Database
 sqlalchemy==2.0.23
-psycopg2-binary 
+psycopg2-binary
 
 # Redis (큐 관리, 캐싱)
 redis==5.0.1
@@ -14,12 +14,8 @@ redis==5.0.1
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 
+# Validation
+pydantic[email]==2.5.0
+
 # Environment
 python-dotenv==1.0.0
-
-# Audio Processing (선택사항 - 나중에 필요하면)
-# pydub==0.25.1
-# ffmpeg-python==0.2.0
-
-# AWS S3 (선택사항 - 나중에 파일 업로드 시)
-# boto3==1.29.7
