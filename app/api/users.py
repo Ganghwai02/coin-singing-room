@@ -10,7 +10,7 @@ from pydantic import BaseModel, EmailStr
 
 router = APIRouter()
 
-# Pydantic 스키마
+# --- Pydantic 스키마 ---
 class UserCreate(BaseModel):
     email: EmailStr
     username: str
@@ -23,7 +23,6 @@ class UserResponse(BaseModel):
     is_premium: bool
     daily_plays_left: int
 
-
     class Config:
         from_attributes = True
 
@@ -32,12 +31,12 @@ class Token(BaseModel):
     token_type: str
     user: UserResponse
 
+# --- API 엔드포인트 ---
 
-# 회원가입
+# 1. 회원가입
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """회원가입"""
-    # 이메일 중복 체크
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
         raise HTTPException(
@@ -45,13 +44,14 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
             detail="이미 등록된 이메일입니다"
         )
     
-    # 사용자 생성
     hashed_password = get_password_hash(user_data.password)
     new_user = User(
         email=user_data.email,
         username=user_data.username,
         hashed_password=hashed_password,
-        is_premium=False
+        is_premium=False,
+        daily_song_count=0,  # 초기화
+        last_active_date=date.today()  # 가입일 기준
     )
     
     db.add(new_user)
@@ -59,18 +59,20 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
     
     return {
-        **new_user.__dict__,
-        "daily_plays_left": 3  # 무료 사용자 일일 3곡
+        "id": new_user.id,
+        "email": new_user.email,
+        "username": new_user.username,
+        "is_premium": new_user.is_premium,
+        "daily_plays_left": 3
     }
 
-# 로그인
+# 2. 로그인 (핵심 수정 부분!)
 @router.post("/login", response_model=Token)
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
-    """로그인"""
-    # 사용자 찾기
+    """로그인 및 토큰 발급"""
     user = db.query(User).filter(User.email == form_data.username).first()
     
     if not user or not verify_password(form_data.password, user.hashed_password):
@@ -80,40 +82,46 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # JWT 토큰 생성
+    # ⚠️ 중요: "sub" 값은 반드시 문자열 str(user.id)로 전달해야 auth.py와 호환됩니다.
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.id},
+        data={"sub": str(user.id)}, 
         expires_delta=access_token_expires
     )
     
-    # 오늘 재생 횟수 계산 (간단히 3으로 설정, 나중에 DB에서 조회)
-    daily_plays_left = 999 if user.is_premium else 3
+    # 오늘 남은 횟수 계산
+    daily_plays_left = 999 if user.is_premium else max(0, 3 - user.daily_song_count)
     
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "user": {
-            **user.__dict__,
+            "id": user.id,
+            "email": user.email,
+            "username": user.username,
+            "is_premium": user.is_premium,
             "daily_plays_left": daily_plays_left
         }
     }
 
-# 내 정보 조회
+# 3. 내 정보 조회 (인증 테스트용)
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     """현재 로그인한 사용자 정보"""
-    daily_plays_left = 999 if current_user.is_premium else 3
+    daily_plays_left = 999 if current_user.is_premium else max(0, 3 - current_user.daily_song_count)
     
     return {
-        **current_user.__dict__,
+        "id": current_user.id,
+        "email": current_user.email,
+        "username": current_user.username,
+        "is_premium": current_user.is_premium,
         "daily_plays_left": daily_plays_left
     }
 
-# 일일 재생 제한 확인
+# 4. 일일 제한 확인
 @router.get("/daily-limit")
 async def check_daily_limit(current_user: User = Depends(get_current_user)):
-    """오늘 남은 재생 횟수"""
+    """오늘 남은 재생 횟수 상세 조회"""
     if current_user.is_premium:
         return {
             "is_premium": True,
@@ -121,8 +129,7 @@ async def check_daily_limit(current_user: User = Depends(get_current_user)):
             "message": "프리미엄 사용자는 무제한입니다"
         }
     
-    # TODO: 실제로는 DB에서 오늘 재생 기록 확인
-    plays_left = 3
+    plays_left = max(0, 3 - current_user.daily_song_count)
     
     return {
         "is_premium": False,

@@ -35,6 +35,12 @@ class PlayResponse(BaseModel):
     message: str
     plays_left: int
 
+class SongCreate(BaseModel):
+    title: str
+    artist: str
+    genre: str
+    is_premium: bool = False
+
 # 곡 목록 조회 (검색, 필터링)
 @router.get("/", response_model=List[SongResponse])
 async def get_songs(
@@ -126,6 +132,18 @@ async def get_song(
         "created_at": song.created_at.isoformat(),
         "is_favorited": is_favorited
     }
+
+
+# 노래 등록
+@router.post("/", status_code=201)
+async def create_song(song_data: SongCreate, db: Session = Depends(get_db)):
+    new_song = Song(**song_data.dict())
+    db.add(new_song)
+    db.commit()
+    db.refresh(new_song)
+    return new_song
+
+
 
 # 프리미엄 전용 곡
 @router.get("/premium/list", response_model=List[SongResponse])
