@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, DateTime, Date
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
@@ -13,6 +13,9 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_premium = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    plan_type = Column(String, default="FREE") # FREE, MONTHLY, PREMIUM
+    daily_song_count = Column(Integer, default=0) # 오늘 부른 곡 수
+    last_active_date = Column(Date) # 날짜가 바뀌면 count를 초기화하기 위함
     
     # 관계
     recordings = relationship("Recording", back_populates="user")
