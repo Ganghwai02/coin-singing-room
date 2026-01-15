@@ -121,15 +121,43 @@
     </div>
 
     <div id="karaoke-view">
-        <div id="karaoke-remain-badge">남은 곡: <span id="karaoke-remain-val">3</span>곡</div>
-        <div id="yt-player" style="width:85%; aspect-ratio:16/9; border-radius:20px; overflow:hidden; box-shadow: 0 0 50px rgba(0,0,0,1);"></div>
-        <div id="score-overlay">
-            <h2 style="color:gold;">🎤 오늘 당신의 점수는?</h2>
-            <div id="final-score" style="font-size:100px; font-weight:900; margin:20px 0;">0</div>
-            <button class="btn-sing" onclick="closeScore()">확인</button>
+    <div id="karaoke-remain-badge">남은 곡: <span id="karaoke-remain-val">3</span>곡</div>
+    
+    <div id="live-hud" style="position: absolute; top: 30px; right: 30px; text-align: right;">
+        <div style="font-size: 14px; color: #00f2ff;">LIVE SCORE: <span id="live-score">0</span></div>
+        <div id="combo-box" style="font-size: 24px; font-weight: 900; color: gold; display:none;">
+            <span id="combo-count">0</span> COMBO!
         </div>
-        <button onclick="exitKaraoke()" style="margin-top:25px; background:none; border:1px solid #555; color:white; padding:12px 40px; border-radius:30px; cursor:pointer;">노래 종료</button>
     </div>
+
+    <div id="yt-player" style="width:80%; aspect-ratio:16/9; border-radius:20px; overflow:hidden;"></div>
+
+    <div id="audio-controls" style="display:flex; gap:30px; margin-top:25px; background:rgba(255,255,255,0.1); padding:15px 40px; border-radius:50px; backdrop-filter:blur(10px);">
+        <div class="control-group">
+            <label>🔊 볼륨</label>
+            <input type="range" id="vol-control" min="0" max="100" value="80" oninput="updateAudio()">
+        </div>
+        <div class="control-group">
+            <label>🎵 에코</label>
+            <input type="range" id="echo-control" min="0" max="100" value="30" oninput="updateAudio()">
+        </div>
+        <div class="control-group">
+            <label>🎹 키 조절</label>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <button onclick="changeKey(-1)" style="background:#444; color:white; border:none; border-radius:50%; width:30px; height:30px; cursor:pointer;">-</button>
+                <span id="key-val" style="font-weight:bold; width:20px; text-align:center;">0</span>
+                <button onclick="changeKey(1)" style="background:#444; color:white; border:none; border-radius:50%; width:30px; height:30px; cursor:pointer;">+</button>
+            </div>
+        </div>
+    </div>
+    
+    <button onclick="exitKaraoke()" style="margin-top:20px; opacity:0.5; background:none; color:white; border:none; cursor:pointer;">종료</button>
+</div>
+
+<style>
+    .control-group { display:flex; flex-direction:column; align-items:center; gap:5px; font-size:12px; }
+    #audio-controls label { font-weight:bold; color:var(--ss-pink); margin-bottom:5px; }
+</style>
 
     <div id="purchase-toast">
         <div style="font-size: 20px;">🔥</div>

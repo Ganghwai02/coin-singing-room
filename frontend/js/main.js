@@ -68,6 +68,64 @@ function startNextSong() {
     updateUI();
 
     document.getElementById("karaoke-view").style.display = "flex";
+    let currentKey = 0;
+let liveScore = 0;
+let combo = 0;
+let scoreInterval;
+
+function changeKey(val) {
+    currentKey += val;
+    document.getElementById("key-val").innerText = currentKey;
+    // 실제 오디오 피치 변경 로직은 Web Audio API 노드를 통해 구현 가능합니다.
+    alert(`키가 ${val > 0 ? '올라' : '내려'}갔습니다. (현재: ${currentKey})`);
+}
+
+function updateAudio() {
+    const vol = document.getElementById("vol-control").value;
+    const echo = document.getElementById("echo-control").value;
+    // 볼륨 및 에코 값 조절 (시각적 피드백)
+    console.log(`Volume: ${vol}, Echo: ${echo}`);
+}
+
+// 노래 시작 시 HUD 초기화 및 실시간 점수 시작
+function startLiveHUD() {
+    liveScore = 0;
+    combo = 0;
+    document.getElementById("live-score").innerText = "0";
+    
+    scoreInterval = setInterval(() => {
+        
+        // 1초마다 점수가 랜덤하게 오르는 척 함 (실제론 마이크 입력 분석 필요)
+        const gain = Math.floor(Math.random() * 50) + 10;
+        liveScore += gain;
+        document.getElementById("live-score").innerText = liveScore.toLocaleString();
+        
+        // 콤보 시스템
+        if(Math.random() > 0.3) {
+            combo++;
+            showCombo();
+        } else {
+            combo = 0;
+            document.getElementById("combo-box").style.display = "none";
+        }
+    }, 1000);
+}
+
+function showCombo() {
+    const box = document.getElementById("combo-box");
+    if(combo > 2) {
+        box.style.display = "block";
+        document.getElementById("combo-count").innerText = combo;
+        box.animate([{transform: 'scale(1.2)'}, {transform: 'scale(1)'}], {duration: 200});
+    }
+}
+
+// exitKaraoke 시 인터벌 클리어 필수
+function exitKaraoke() {
+    clearInterval(scoreInterval);
+    document.getElementById("karaoke-view").style.display = "none";
+    document.getElementById("yt-player").innerHTML = "";
+}
 
     // 검색어에서 특수문자를 제거하고 최적화합니다.
     const cleanSongName = song.replace(/[#?&%]/g, '');
