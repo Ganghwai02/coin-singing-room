@@ -2,105 +2,111 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>코인 노래방 관리 대시보드</title>
+    <title>노래방 통합 관리 시스템</title>
     <style>
-        :root { --primary: #1a73e8; --bg: #f8f9fa; }
-        body { font-family: 'Pretendard', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 800px; margin: 0 auto; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        h1 { text-align: center; color: var(--primary); }
-        h2 { border-bottom: 2px solid var(--primary); padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-        button { padding: 8px 16px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.2s; }
-        button:hover { background: #1557b0; }
-        .song-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; }
-        .song-item:last-child { border-bottom: none; }
-        .badge { background: #e8f0fe; color: var(--primary); padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+        :root { --primary: #1a73e8; --bg: #f8f9fa; --accent: #ea4335; }
+        body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .full { grid-column: span 2; }
+        h2 { border-bottom: 2px solid var(--primary); padding-bottom: 10px; margin-top: 0; display: flex; justify-content: space-between; }
+        input, button { padding: 10px; border-radius: 6px; border: 1px solid #ddd; }
+        button { background: var(--primary); color: white; cursor: pointer; border: none; font-weight: bold; }
+        .room-tag { background: var(--accent); color: white; padding: 4px 10px; border-radius: 20px; font-size: 14px; }
+        .list-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; }
+        .lyrics-display { background: #222; color: #0f0; padding: 20px; border-radius: 8px; height: 100px; font-family: monospace; text-align: center; display: flex; align-items: center; justify-content: center; font-size: 1.2em; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎤 슈퍼 코인 노래방 서비스</h1>
+        <h1 class="full" style="text-align: center;">🎤 노래방 멀티룸 대시보드</h1>
 
         <div class="card">
-            <h2>🔎 빠른 예약</h2>
-            <div style="display: flex; gap: 10px;">
-                <input type="number" id="songIdInput" placeholder="곡 ID 입력 (예: 1)" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                <button onclick="enqueueSong()">예약하기</button>
-                <button onclick="enqueueSong(true)" style="background: #dc3545;">우선예약</button>
+            <h2>🏠 <span id="roomName" class="room-tag">Room_A</span> 관리</h2>
+            <div style="margin-bottom: 15px;">
+                <input type="text" id="roomInput" value="Room_A" style="width: 100px;">
+                <button onclick="changeRoom()" style="background: #555;">방 이동</button>
             </div>
+            <div style="display: flex; gap: 5px;">
+                <input type="number" id="songIdInput" placeholder="곡ID" style="width: 60px;">
+                <button onclick="enqueue(false)">예약</button>
+                <button onclick="enqueue(true)" style="background: var(--accent);">우선예약</button>
+            </div>
+            <div id="queue-list" style="margin-top: 20px;"></div>
         </div>
 
         <div class="card">
-            <h2>🔥 실시간 인기 차트 <button onclick="getPopular()">🔄</button></h2>
-            <div id="popular-list">차트를 불러오는 중...</div>
+            <h2>📜 실시간 가사</h2>
+            <div id="lyrics-content" class="lyrics-display">곡을 선택하고 싱크를 시작하세요.</div>
+            <button onclick="startLyricsSync()" style="width: 100%; margin-top: 10px; background: #34a853;">싱크 시뮬레이션 시작</button>
         </div>
 
-        <div class="card">
-            <h2>⏳ 현재 대기열 <button onclick="getQueue()">🔄</button></h2>
-            <div id="queue-list">대기열이 비어있습니다.</div>
+        <div class="card full">
+            <h2>🏆 전국 명예의 전당 (Top 5) <button onclick="getLeaderboard()" style="font-size: 12px;">🔄 새로고침</button></h2>
+            <div id="leaderboard-list"></div>
         </div>
     </div>
 
     <script>
         const API_BASE = "http://127.0.0.1:8000/api/songs";
+        let currentRoom = "Room_A";
+        let currentSyncData = []; 
 
-        // 1. 인기 차트 가져오기
-        async function getPopular() {
-            try {
-                const res = await fetch(`${API_BASE}/charts/popular`);
-                const data = await res.json();
-                const listDiv = document.getElementById('popular-list');
-                listDiv.innerHTML = data.map(s => `
-                    <div class="song-item">
-                        <span><strong>${s.title}</strong> - ${s.artist}</span>
-                        <span class="badge">🔥 ${s.reserve_count}회 예약됨</span>
-                    </div>
-                `).join('') || "데이터가 없습니다.";
-            } catch (e) { console.error("차트 로딩 실패", e); }
-        }
-
-        // 2. 대기열 가져오기
-        async function getQueue() {
-            try {
-                const res = await fetch(`${API_BASE}/queue/list`);
-                const data = await res.json();
-                const listDiv = document.getElementById('queue-list');
-                listDiv.innerHTML = data.map(q => `
-                    <div class="song-item">
-                        <span><b style="color:var(--primary)">${q.position}위</b> ${q.title} - ${q.artist}</span>
-                        <button onclick="cancelQueue(${q.id})" style="background:#bbb; font-size:12px;">취소</button>
-                    </div>
-                `).join('') || "현재 대기 중인 곡이 없습니다.";
-            } catch (e) { console.error("대기열 로딩 실패", e); }
-        }
-
-        // 3. 곡 예약하기
-        async function enqueueSong(isPriority = false) {
-            const songId = document.getElementById('songIdInput').value;
-            if(!songId) return alert("곡 ID를 입력해주세요!");
-
-            try {
-                const res = await fetch(`${API_BASE}/${songId}/enqueue?is_priority=${isPriority}`, {
-                    method: 'POST'
-                });
-                const data = await res.json();
-                alert(data.message);
-                getQueue(); // 예약 후 대기열 갱신
-                getPopular(); // 인기 차트도 갱신될 수 있음
-            } catch (e) { alert("예약 실패! 서버를 확인하세요."); }
-        }
-
-        // 4. 예약 취소하기
-        async function cancelQueue(queueId) {
-            if(!confirm("정말 취소하시겠습니까?")) return;
-            await fetch(`${API_BASE}/queue/${queueId}`, { method: 'DELETE' });
+        function changeRoom() {
+            currentRoom = document.getElementById('roomInput').value;
+            document.getElementById('roomName').innerText = currentRoom;
             getQueue();
         }
 
-        // 초기 데이터 로딩
-        getPopular();
+        async function enqueue(isPriority) {
+            const sid = document.getElementById('songIdInput').value;
+            if(!sid) return alert("곡 ID 입력!");
+            await fetch(`${API_BASE}/${sid}/enqueue?room_id=${currentRoom}&is_priority=${isPriority}`, {method:'POST'});
+            getQueue();
+        }
+
+        async function getQueue() {
+            const res = await fetch(`${API_BASE}/queue/list?room_id=${currentRoom}`);
+            const data = await res.json();
+            document.getElementById('queue-list').innerHTML = data.map(q => `
+                <div class="list-item">
+                    <span><b>${q.position}위</b> ${q.title}</span>
+                    <button onclick="loadLyrics(${q.song_id})" style="padding:2px 8px; font-size:12px;">선택</button>
+                </div>
+            `).join('') || "예약된 곡이 없습니다.";
+        }
+
+        async function loadLyrics(sid) {
+            const res = await fetch(`${API_BASE}/${sid}/lyrics`);
+            const data = await res.json();
+            currentSyncData = data.sync_data; 
+            document.getElementById('lyrics-content').innerText = `[${data.title}] 준비 완료!`;
+        }
+
+        function startLyricsSync() {
+            if(!currentSyncData || currentSyncData.length === 0) return alert("곡을 먼저 선택하세요!");
+            let time = 0;
+            const timer = setInterval(() => {
+                time++;
+                const sync = currentSyncData.find(s => s.time === time);
+                if(sync) document.getElementById('lyrics-content').innerText = sync.text;
+                if(time > 20) { clearInterval(timer); document.getElementById('lyrics-content').innerText = "재생 종료"; }
+            }, 1000);
+        }
+
+        async function getLeaderboard() {
+            const res = await fetch(`${API_BASE}/social/leaderboard`);
+            const data = await res.json();
+            document.getElementById('leaderboard-list').innerHTML = data.map((u, i) => `
+                <div class="list-item">
+                    <span>${i+1}등. <b>${u.username}</b></span>
+                    <span style="color:var(--accent)">${u.top_score}점</span>
+                </div>
+            `).join('');
+        }
+
         getQueue();
+        getLeaderboard();
     </script>
 </body>
 </html>
