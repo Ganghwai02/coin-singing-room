@@ -4,7 +4,8 @@ from sqlalchemy import or_
 from typing import Optional, List
 from datetime import date
 from app.database import get_db
-from app.models import User, Song, Favorite
+# Queue 모델을 추가로 불러옵니다.
+from app.models import User, Song, Favorite, Queue 
 from app.auth import get_current_user
 from pydantic import BaseModel
 
@@ -43,6 +44,17 @@ class SongCreate(BaseModel):
     artist: str
     genre: str
     is_premium: bool = False
+
+# [추가] 예약 목록 응답을 위한 스키마
+class QueueResponse(BaseModel):
+    id: int
+    song_id: int
+    title: str
+    artist: str
+    position: int
+
+    class Config:
+        from_attributes = True
 
 # --- API 엔드포인트 ---
 
@@ -93,43 +105,36 @@ async def create_song(song_data: SongCreate, db: Session = Depends(get_db)):
     db.refresh(new_song)
     return new_song
 
-# 4. 곡 재생 (날짜 리셋 및 카운트 로직 강화 버전)
+# 4. 곡 재생 (일일 제한 로직 포함)
 @router.post("/{song_id}/play", response_model=PlayResponse)
 async def play_song(
     song_id: int, 
     current_user: User = Depends(get_current_user), 
     db: Session = Depends(get_db)
 ):
-    # [1] 곡 존재 여부 확인
     song = db.query(Song).filter(Song.id == song_id).first()
     if not song:
         raise HTTPException(status_code=404, detail="곡을 찾을 수 없습니다")
 
-    # [2] 날짜 변경 체크 (오늘 처음 접속했다면 카운트 리셋)
     today = date.today()
     if current_user.last_active_date != today:
         current_user.daily_song_count = 0
         current_user.last_active_date = today
-        db.commit() # 날짜와 초기화된 카운트 먼저 저장
+        db.commit()
 
-    # [3] 프리미엄 곡 권한 체크
     if song.is_premium and not current_user.is_premium:
         raise HTTPException(status_code=403, detail="프리미엄 구독이 필요한 곡입니다")
 
-    # [4] 무료 사용자 재생 제한 체크
     if current_user.is_premium:
         remaining = 999 
     else:
-        # 디버깅용 터미널 로그 (서버 로그 창에서 확인 가능)
         print(f"DEBUG: {current_user.username}의 현재 카운트 = {current_user.daily_song_count}")
-        
         if current_user.daily_song_count >= 3:
             raise HTTPException(status_code=403, detail="오늘의 무료 곡(3곡)을 모두 사용하셨습니다.")
         
-        # 카운트 증가 및 강제 동기화
         current_user.daily_song_count += 1
         db.add(current_user)
-        db.flush() # 변경 사항을 DB 세션에 즉시 반영
+        db.flush()
         db.commit()
         db.refresh(current_user)
         remaining = 3 - current_user.daily_song_count
@@ -142,7 +147,7 @@ async def play_song(
         "title": song.title
     }
 
-# 5. 즐겨찾기 관련
+# --- 5. 즐겨찾기 관련 ---
 @router.post("/{song_id}/favorite")
 async def add_favorite(song_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     existing = db.query(Favorite).filter(Favorite.user_id == current_user.id, Favorite.song_id == song_id).first()
@@ -166,3 +171,55 @@ async def remove_favorite(song_id: int, current_user: User = Depends(get_current
 async def get_my_favorites(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     songs = db.query(Song).join(Favorite).filter(Favorite.user_id == current_user.id).all()
     return [{**song.__dict__, "is_favorited": True} for song in songs]
+
+# --- 6. [추가] 예약 시스템 (Queue) 관련 ---
+
+# 곡 예약하기
+@router.post("/{song_id}/enqueue", status_code=201)
+async def enqueue_song(
+    song_id: int, 
+    current_user: User = Depends(get_current_user), # 유저 확인용
+    db: Session = Depends(get_db)
+):
+    song = db.query(Song).filter(Song.id == song_id).first()
+    if not song:
+        raise HTTPException(status_code=404, detail="곡을 찾을 수 없습니다")
+
+    # 현재 대기 중인 마지막 순번 찾기
+    last_item = db.query(Queue).order_by(Queue.position.desc()).first()
+    next_position = (last_item.position + 1) if last_item else 1
+    
+    new_queue = Queue(
+        song_id=song_id,
+        position=next_position,
+        room_id="default_room" # 기본 방 설정
+    )
+    
+    db.add(new_queue)
+    db.commit()
+    
+    return {"success": True, "message": f"'{song.title}' 곡이 예약되었습니다!", "position": next_position}
+
+# 예약 목록 조회하기 (Join 사용하여 제목까지 가져옴)
+@router.get("/queue/list", response_model=List[QueueResponse])
+async def get_queue_list(db: Session = Depends(get_db)):
+    results = db.query(
+        Queue.id, 
+        Queue.song_id, 
+        Queue.position, 
+        Song.title, 
+        Song.artist
+    ).join(Song, Queue.song_id == Song.id).order_by(Queue.position).all()
+    
+    return results
+
+# 예약 취소하기
+@router.delete("/queue/{queue_id}")
+async def dequeue_song(queue_id: int, db: Session = Depends(get_db)):
+    target = db.query(Queue).filter(Queue.id == queue_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="예약 내역을 찾을 수 없습니다")
+    
+    db.delete(target)
+    db.commit()
+    return {"message": "예약이 취소되었습니다"}
