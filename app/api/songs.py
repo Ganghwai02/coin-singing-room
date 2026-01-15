@@ -63,7 +63,7 @@ class LyricsResponse(BaseModel):
     song_id: int
     title: str
     lyrics: str # 가사 전체 내용
-
+    sync_data: Optional[List[dict]] = [] # 싱크 데이터 필드 추가
 # --- API 엔드포인트 ---
 
 # 1. 곡 목록 조회
@@ -162,10 +162,11 @@ async def add_favorite(song_id: int, current_user: User = Depends(get_current_us
     db.commit()
     return {"message": "즐겨찾기에 추가되었습니다"}
 
-# --- 6. 예약 시스템 & 우선 예약 ---
+# --- 6. 예약 시스템 & 우선 예약 (방 ID 지원 수정) ---
 @router.post("/{song_id}/enqueue", status_code=201)
 async def enqueue_song(
     song_id: int, 
+    room_id: str = Query("Room_A", description="방 번호"), # 파라미터 추가
     is_priority: bool = Query(False, description="우선 예약 여부"),
     db: Session = Depends(get_db)
 ):
@@ -174,21 +175,28 @@ async def enqueue_song(
         raise HTTPException(status_code=404, detail="곡을 찾을 수 없습니다")
 
     if is_priority:
-        db.query(Queue).update({Queue.position: Queue.position + 1})
+        # 해당 방의 곡들만 순서 밀기
+        db.query(Queue).filter(Queue.room_id == room_id).update({Queue.position: Queue.position + 1})
         next_position = 1
     else:
-        last_item = db.query(Queue).order_by(Queue.position.desc()).first()
+        # 해당 방의 마지막 순번 찾기
+        last_item = db.query(Queue).filter(Queue.room_id == room_id).order_by(Queue.position.desc()).first()
         next_position = (last_item.position + 1) if last_item else 1
     
-    new_queue = Queue(song_id=song_id, position=next_position, room_id="default_room")
+    new_queue = Queue(song_id=song_id, position=next_position, room_id=room_id)
     db.add(new_queue)
     db.commit()
     
-    return {"message": f"{'우선' if is_priority else '일반'} 예약 완료!", "position": next_position}
+    return {"message": f"[{room_id}] {'우선' if is_priority else '일반'} 예약 완료!", "position": next_position}
 
 @router.get("/queue/list", response_model=List[QueueResponse])
-async def get_queue_list(db: Session = Depends(get_db)):
-    return db.query(Queue.id, Queue.song_id, Queue.position, Song.title, Song.artist).join(Song).order_by(Queue.position).all()
+async def get_queue_list(
+    room_id: str = Query("Room_A", description="방 번호"), # 파라미터 추가
+    db: Session = Depends(get_db)
+):
+    return db.query(Queue.id, Queue.song_id, Queue.position, Song.title, Song.artist)\
+             .join(Song).filter(Queue.room_id == room_id)\
+             .order_by(Queue.position).all()
 
 # --- 7. 보너스 로직 (100점 보너스) ---
 @router.post("/finish", status_code=200)
@@ -297,34 +305,38 @@ async def get_room_queue(room_id: str, db: Session = Depends(get_db)):
              .join(Song).filter(Queue.room_id == room_id)\
              .order_by(Queue.position).all()
 
-# --- 11. 가사 서비스 (Lyrics) ---
-
+# --- 11. 가사 서비스 (Lyrics 싱크 데이터 추가) ---
 @router.get("/{song_id}/lyrics", response_model=LyricsResponse)
 async def get_song_lyrics(song_id: int, db: Session = Depends(get_db)):
-    song = db.query(Song).filter(song_id == song_id).first()
-    if not Song:
+    song = db.query(Song).filter(Song.id == song_id).first()
+    if not song:
         raise HTTPException(status_code=404, detail="곡을 찾을 수 없습니다.")
     
-    # 실제 환경에서는 lyrics_path의 파일을 읽어오지만, 여기선 예시 텍스트를 반환합니다.
-    sample_lyrics = f"[{song.title} - 가사]\n이 노래는 즐거운 노래입니다...\n라라라라~"
+    # 실시간 가사 싱크를 위한 샘플 데이터 (초 단위)
+    sample_sync = [
+        {"time": 2, "text": "🎵 (전주 흐르는 중...)"},
+        {"time": 5, "text": "첫 소절이 시작됩니다!"},
+        {"time": 10, "text": "두 번째 가사도 박자에 맞춰서~"},
+        {"time": 15, "text": "마지막 가사가 지나갑니다. 🎤"}
+    ]
 
     return {
         "song_id": song_id,
         "title": song.title,
-        "lyrics": song.audio_path if song.audio_path else sample_lyrics # 경로가 있으면 경로 출력
+        "lyrics": f"[{song.title}] 전체 가사입니다...",
+        "sync_data": sample_sync
     }
 
-# --- 12. 친구 시스템 (Friendship & Social) ---
-
-# 친구 점수 랭킹 (전체 유저 대상 혹은 친구 필터)
+# --- 12. 친구 시스템 (리더보드 로직 수정) ---
 @router.get("/social/leaderboard")
 async def get_social_leaderboard(db: Session = Depends(get_db)):
-    # 유저별 최고 점수를 집계하여 랭킹 생성
+    # 유저별 최고 점수를 집계하여 랭킹 생성 (dict mapping 수정)
     leaderboard = db.query(
         User.username,
         func.max(Recording.score).label('top_score')
-    ).join(Recording, User.id == Recording.user_id())\
-    .order_by(func.max(Recording.score).desc())\
-    .limit(10).all()
+    ).join(Recording, User.id == Recording.user_id)\
+     .group_by(User.id)\
+     .order_by(func.max(Recording.score).desc())\
+     .limit(10).all()
 
-    return [dict(row.mapping) for row in leaderboard]
+    return [dict(row._mapping) for row in leaderboard]
