@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>코인 노래방 관리자 화면</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f0f2f5; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2 { color: #1a73e8; }
+        button { padding: 10px 20px; background: #1a73e8; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .song-item { border-bottom: 1px solid #eee; padding: 10px 0; display: flex; justify-content: space-between; }
+    </style>
+</head>
+<body>
+    <h1>🎤 슈퍼 코인 노래방 대시보드</h1>
+
+    <div class="card">
+        <h2>🔥 실시간 인기 차트</h2>
+        <button onclick="getPopular()">차트 새로고침</button>
+        <div id="popular-list"></div>
+    </div>
+
+    <div class="card">
+        <h2>⏳ 현재 대기열 (Room_A)</h2>
+        <button onclick="getQueue()">대기열 새로고침</button>
+        <div id="queue-list"></div>
+    </div>
+
+    <script>
+        const API_BASE = "http://127.0.0.1:8000/api/songs";
+
+        // 인기 차트 가져오기
+        async function getPopular() {
+            const res = await fetch(`${API_BASE}/charts/popular`);
+            const data = await res.json();
+            const listDiv = document.getElementById('popular-list');
+            listDiv.innerHTML = data.map(s => `
+                <div class="song-item">
+                    <span><strong>${s.title}</strong> - ${s.artist}</span>
+                    <span>예약수: ${s.reserve_count}회</span>
+                </div>
+            `).join('');
+        }
+
+        // 대기열 가져오기
+        async function getQueue() {
+            const res = await fetch(`${API_BASE}/queue/list`); // 또는 /rooms/default_room/queue
+            const data = await res.json();
+            const listDiv = document.getElementById('queue-list');
+            listDiv.innerHTML = data.map(q => `
+                <div class="song-item">
+                    <span>${q.position}위. ${q.title}</span>
+                    <span>예약ID: ${q.id}</span>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
