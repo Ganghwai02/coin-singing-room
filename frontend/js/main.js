@@ -1,225 +1,207 @@
-let remainSongs = 3;
+// [상태 관리 데이터]
 let userPlan = "free";
+let remainSongs = 3;
 let reservationQueue = [];
-
-const charts = [
-    {title: "에피소드", artist: "이무진"},
-    {title: "Love Wins All", artist: "아이유"},
-    {title: "밤양갱", artist: "비비"},
-    {title: "Hype Boy", artist: "NewJeans"},
-    {title: "Seven", artist: "Jungkook"}
+let charts = [
+    { title: "에피소드", artist: "이무진" },
+    { title: "Love Wins All", artist: "아이유" },
+    { title: "밤양갱", artist: "비비" },
+    { title: "Hype Boy", artist: "NewJeans" },
+    { title: "Seven", artist: "Jungkook" },
+    { title: "첫 만남은 계획대로 되지 않아", artist: "TWS" }
 ];
 
-document.addEventListener("DOMContentLoaded", () => {
-    if (!localStorage.getItem("token")) {
-        location.href = "auth.html";
-        return;
-    }
-    const savedName = localStorage.getItem("nickname") || "가수님";
-    document.getElementById("edit-nickname").value = savedName;
-    renderChart();
+let audioCtx, analyser, dataArray, canvas, canvasCtx, animationId;
+let scoreInterval;
+
+window.onload = () => {
+    const savedNick = localStorage.getItem("nickname") || "아이유좋아용";
+    document.getElementById("display-name").innerText = savedNick;
+    renderCharts();
     updateUI();
-});
+};
 
-function changeTab(element, sectionId) {
-    document.querySelectorAll('.nav-menu li').forEach(li => li.classList.remove('active'));
-    element.classList.add('active');
-    document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
-    document.getElementById(`section-${sectionId}`).classList.add('active');
-}
-
-function renderChart() {
-    const list = document.getElementById("chart-list");
-    list.innerHTML = charts.map((c, i) => `
+// 1. 차트 & 검색 & 예약 로직 (기존과 동일)
+function renderCharts() {
+    const chartList = document.getElementById("chart-list");
+    if(!chartList) return;
+    chartList.innerHTML = charts.map((song, index) => `
         <div class="chart-card">
-            <div style="font-size:20px; font-weight:bold; color:var(--ss-pink); width:40px;">${i+1}</div>
-            <div style="flex:1"><b>${c.title}</b><br><small>${c.artist}</small></div>
-            <button class="btn-sing" onclick="addToQueue('${c.artist} ${c.title}')">예약</button>
+            <div class="rank-num">${index + 1}</div>
+            <div class="song-info">
+                <div class="song-title">${song.title}</div>
+                <div class="song-artist">${song.artist}</div>
+            </div>
+            <button class="btn-reserve" onclick="addToQueue('${song.artist} ${song.title}')">예약</button>
         </div>
     `).join('');
 }
 
-function handleSearch(e) {
-    if (e.key === 'Enter') {
-        const q = e.target.value;
-        if(q) { addToQueue(q); e.target.value = ""; }
-    }
+function showSuggestions(val) {
+    const box = document.getElementById("search-suggestions");
+    if (!val.trim()) { box.style.display = "none"; return; }
+    const matches = charts.filter(s => s.title.includes(val) || s.artist.includes(val));
+    if (matches.length > 0) {
+        box.innerHTML = matches.map(s => `<div style="padding:15px; border-bottom:1px solid #333; cursor:pointer;" onclick="selectSong('${s.artist} ${s.title}')"><b style="color:var(--ss-pink)">${s.title}</b> - ${s.artist}</div>`).join('');
+        box.style.display = "block";
+    } else { box.style.display = "none"; }
 }
 
-function addToQueue(songName) {
-    reservationQueue.push(songName);
+function selectSong(name) {
+    document.getElementById("main-search-input").value = name;
+    document.getElementById("search-suggestions").style.display = "none";
+    addToQueue(name);
+}
+
+function addToQueue(name) {
+    reservationQueue.push(name);
     updateQueueUI();
-    alert(`'${songName}' 예약 완료!`);
 }
 
 function updateQueueUI() {
     const list = document.getElementById("reserve-list");
-    list.innerHTML = reservationQueue.length === 0 ? '<div class="reserve-item">곡을 예약해주세요</div>' : 
-        reservationQueue.map((s, i) => `<div class="reserve-item">${i+1}. ${s}</div>`).join('');
+    if (!list) return;
+    list.innerHTML = reservationQueue.length === 0 ? '<div class="reserve-item">곡을 예약해주세요</div>' : reservationQueue.map(s => `<div class="reserve-item">🎵 ${s}</div>`).join('');
+}
+
+// 2. 노래방 실행 & 실시간 점수 로직
+async function startVisualizer() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        const source = audioCtx.createMediaStreamSource(stream);
+        source.connect(analyser);
+        analyser.fftSize = 64; 
+        const bufferLength = analyser.frequencyBinCount;
+        dataArray = new Uint8Array(bufferLength);
+        canvas = document.getElementById("visualizer");
+        canvasCtx = canvas.getContext("2d");
+        function draw() {
+            animationId = requestAnimationFrame(draw);
+            analyser.getByteFrequencyData(dataArray);
+            canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+            let x = 0;
+            for(let i = 0; i < bufferLength; i++) {
+                let barHeight = dataArray[i] / 1.5;
+                canvasCtx.fillStyle = `rgb(255, 0, 123)`; 
+                canvasCtx.fillRect(x, canvas.height - barHeight, (canvas.width / bufferLength) * 2.5 - 4, barHeight);
+                x += (canvas.width / bufferLength) * 2.5;
+            }
+        }
+        draw();
+    } catch (err) { console.warn("마이크 실패", err); }
 }
 
 function startNextSong() {
-    if(reservationQueue.length === 0) return alert("예약된 노래가 없습니다!");
-    if(userPlan === "free" && remainSongs <= 0) return alert("곡이 부족합니다. 충전해주세요!");
+    if (reservationQueue.length === 0) return alert("예약된 노래가 없습니다!");
+    if (userPlan === "free" && remainSongs <= 0) return alert("곡이 부족합니다!");
 
     const song = reservationQueue.shift();
-    updateQueueUI();
-    if(userPlan === "free") remainSongs--;
+    if (userPlan === "free") remainSongs--;
     updateUI();
+    updateQueueUI();
 
     document.getElementById("karaoke-view").style.display = "flex";
-    let currentKey = 0;
-let liveScore = 0;
-let combo = 0;
-let scoreInterval;
+    document.getElementById("yt-player").innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(song + " 노래방")}&autoplay=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
 
-function changeKey(val) {
-    currentKey += val;
-    document.getElementById("key-val").innerText = currentKey;
-    // 실제 오디오 피치 변경 로직은 Web Audio API 노드를 통해 구현 가능합니다.
-    alert(`키가 ${val > 0 ? '올라' : '내려'}갔습니다. (현재: ${currentKey})`);
-}
+    startVisualizer(); 
 
-function updateAudio() {
-    const vol = document.getElementById("vol-control").value;
-    const echo = document.getElementById("echo-control").value;
-    // 볼륨 및 에코 값 조절 (시각적 피드백)
-    console.log(`Volume: ${vol}, Echo: ${echo}`);
-}
-
-// 노래 시작 시 HUD 초기화 및 실시간 점수 시작
-function startLiveHUD() {
-    liveScore = 0;
-    combo = 0;
-    document.getElementById("live-score").innerText = "0";
-    
+    // 🔥 점수 체계 수정: 0 ~ 100점 사이로 나오도록
+    let currentScore = 0;
     scoreInterval = setInterval(() => {
-        
-        // 1초마다 점수가 랜덤하게 오르는 척 함 (실제론 마이크 입력 분석 필요)
-        const gain = Math.floor(Math.random() * 50) + 10;
-        liveScore += gain;
-        document.getElementById("live-score").innerText = liveScore.toLocaleString();
-        
-        // 콤보 시스템
-        if(Math.random() > 0.3) {
-            combo++;
-            showCombo();
-        } else {
-            combo = 0;
-            document.getElementById("combo-box").style.display = "none";
+        if (currentScore < 95) {
+            currentScore += Math.floor(Math.random() * 5); // 조금씩 상승
+        } else if (currentScore < 100) {
+            if(Math.random() > 0.8) currentScore = 100; // 80% 확률로 100점 도전
         }
-    }, 1000);
+        document.getElementById("live-score").innerText = currentScore;
+    }, 2000);
 }
 
-function showCombo() {
-    const box = document.getElementById("combo-box");
-    if(combo > 2) {
-        box.style.display = "block";
-        document.getElementById("combo-count").innerText = combo;
-        box.animate([{transform: 'scale(1.2)'}, {transform: 'scale(1)'}], {duration: 200});
-    }
-}
-
-// exitKaraoke 시 인터벌 클리어 필수
+// 3. 🏆 종료 및 보너스 핵심 로직
 function exitKaraoke() {
-    clearInterval(scoreInterval);
-    document.getElementById("karaoke-view").style.display = "none";
+    const finalScore = parseInt(document.getElementById("live-score").innerText);
+    
+    // 유튜브 중단
     document.getElementById("yt-player").innerHTML = "";
+    
+    // 각종 인터벌 및 오디오 정지
+    clearInterval(scoreInterval);
+    cancelAnimationFrame(animationId);
+    if(audioCtx) { audioCtx.close(); audioCtx = null; }
+
+    showResult(finalScore);
 }
 
-    // 검색어에서 특수문자를 제거하고 최적화합니다.
-    const cleanSongName = song.replace(/[#?&%]/g, '');
-    const searchQuery = encodeURIComponent(cleanSongName + " 노래방 karaoke");
+function showResult(score) {
+    document.getElementById("final-score").innerText = score;
+    const scoreNum = parseInt(score);
+    let comment = "아쉬운 실력이네요! 🔥";
+    
+    // 🎁 100점 보너스 로직
+    if (scoreNum === 100) {
+        comment = "🎊 대박! 100점 보너스 1곡 추가! 🎊";
+        if (userPlan === "free") {
+            remainSongs++; // 곡 수 증가
+            updateUI(); // 사이드바 즉시 업데이트
+        }
+        document.getElementById("final-score").style.color = "gold";
+        document.getElementById("final-score").style.textShadow = "0 0 20px gold";
+    } else if (scoreNum >= 90) {
+        comment = "가수급 실력이시네요! 🎙️";
+        document.getElementById("final-score").style.color = "white";
+    } else {
+        document.getElementById("final-score").style.color = "white";
+    }
 
-    // [핵심] listType=search는 막히는 경우가 많아 '검색 결과로 바로 연결'하는 주소를 사용합니다.
-    // 또한 사용자의 클릭(startNextSong 실행)에 의해 호출되므로 autoplay가 더 잘 작동합니다.
-    const ytIframe = `
-        <iframe 
-            width="100%" 
-            height="100%" 
-            src="https://www.youtube.com/embed?listType=search&list=${searchQuery}&autoplay=1&mute=0" 
-            title="SingStar Player" 
-            frameborder="0" 
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-            allowfullscreen>
-        </iframe>`;
+    document.getElementById("score-comment").innerText = comment;
+    document.getElementById("score-modal").style.display = "flex";
+}
 
-    document.getElementById("yt-player").innerHTML = ytIframe;
-
-    // 점수 오버레이 (15초 후)
-    setTimeout(() => {
-        document.getElementById("final-score").innerText = Math.floor(Math.random() * 16) + 85;
-        document.getElementById("score-overlay").style.display = "block";
-    }, 15000);
+// 4. 나머지 기능
+function closeScore() {
+    document.getElementById("score-modal").style.display = "none";
+    document.getElementById("karaoke-view").style.display = "none";
+    document.getElementById("live-score").innerText = "0";
 }
 
 function updateUI() {
-    const name = localStorage.getItem("nickname") || "가수님";
-    const displayRemain = userPlan === "free" ? remainSongs : "무제한";
-    document.getElementById("display-name").innerText = name;
-    document.getElementById("remain-songs-val").innerText = displayRemain;
-    document.getElementById("karaoke-remain-val").innerText = displayRemain;
-    document.getElementById("user-status").innerText = userPlan === "free" ? "FREE MEMBER" : "PREMIUM MEMBER";
+    const songEl = document.getElementById("remain-songs-val");
+    if(songEl) songEl.innerText = remainSongs;
+    const statusEl = document.getElementById("user-status");
+    if(statusEl) statusEl.innerText = userPlan.toUpperCase() + " MEMBER";
 }
 
-function updateNickname() {
-    const n = document.getElementById("edit-nickname").value;
-    if(n) { localStorage.setItem("nickname", n); updateUI(); alert("변경됨!"); }
+function changeTab(el, tabId) {
+    document.querySelectorAll('.nav-menu li').forEach(li => li.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
+    document.getElementById('section-' + tabId).classList.add('active');
 }
 
 function upgradePlan() {
-    // 1. 초기화
-    const IMP = window.IMP; 
-    IMP.init("imp74441366"); // 테스트용 가맹점 식별코드
-
-    if(confirm("프리미엄 멤버십(월 99,000원)을 결제하시겠습니까?")) {
-        // 2. 결제창 호출
-        IMP.request_pay({
-            pg: "html5_inicis",           // 결제창 방식 (KG이니시스)
-            pay_method: "card",           // 결제 수단
-            merchant_uid: "order_" + new Date().getTime(), // 주문번호
-            name: "SingStar 프리미엄 정기권",
-            amount: 100,                  // 테스트를 위해 100원만 설정 (실제 9900원 가능)
-            buyer_email: "test@user.com",
-            buyer_name: localStorage.getItem("nickname") || "가수님",
-        }, function (rsp) {
-            if (rsp.success) {
-                // 결제 성공 시
-                alert("결제가 완료되었습니다! 이제 무제한으로 즐기세요.");
-                userPlan = "premium";
-                updateUI();
-                
-                // 실제 서비스라면 여기서 서버(FastAPI)에 결제 정보를 보내야 합니다.
-            } else {
-                // 결제 실패 시
-                alert("결제에 실패했습니다: " + rsp.error_msg);
-            }
-        });
+    if(confirm("VIP 연간권을 결제하시겠습니까?")) {
+        userPlan = "premium";
+        remainSongs = "∞";
+        updateUI();
+        alert("결제 완료! 이제 무제한입니다.");
     }
 }
 
-// 랜덤 결제 알림 생성기
-function showRandomPurchase() {
-    const locations = ["서울", "부산", "경기", "인천", "광주", "대구", "제주", "해외"];
-    const names = ["김*수", "이*희", "박*준", "최*아", "SingKing", "노래천재"];
-    
-    const randomLoc = locations[Math.floor(Math.random() * locations.length)];
-    const randomName = names[Math.floor(Math.random() * names.length)];
-    
-    const toast = document.getElementById("purchase-toast");
-    document.getElementById("toast-user").innerText = `${randomLoc}의 ${randomName}님`;
-    
-    // 팝업 등장
-    toast.style.display = "flex";
-    setTimeout(() => { toast.style.display = "none"; }, 4000); // 4초 후 사라짐
+function updateNickname() {
+    const newNick = document.getElementById("edit-nickname").value;
+    if(!newNick) return;
+    localStorage.setItem("nickname", newNick);
+    document.getElementById("display-name").innerText = newNick;
+    alert("변경 완료!");
 }
 
-// 15초마다 랜덤하게 알림 띄우기 (결제 유도)
-setInterval(() => {
-    if(Math.random() > 0.5) showRandomPurchase();
-}, 15000);
-
-function closeScore() { document.getElementById("score-overlay").style.display = "none"; }
-function exitKaraoke() { document.getElementById("karaoke-view").style.display = "none"; document.getElementById("yt-player").innerHTML = ""; }
-function doLogout() { localStorage.clear(); location.href = "auth.html"; }
-function deleteAccount() { if(confirm("탈퇴?")) doLogout(); }
+function changeKey(val) {
+    const el = document.getElementById("key-val");
+    let current = parseInt(el.innerText);
+    current += val;
+    if(current > 6) current = 6;
+    if(current < -6) current = -6;
+    el.innerText = current;
+}
