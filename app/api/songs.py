@@ -18,7 +18,7 @@ class SongResponse(BaseModel):
     artist: str
     genre: Optional[str]
     difficulty: int
-    duration: int
+    duration: Optional[int] = 0
     is_premium: bool
     video_url: Optional[str]
     is_favorited: bool = False
