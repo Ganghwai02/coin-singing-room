@@ -2,58 +2,105 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>코인 노래방 관리자 화면</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>코인 노래방 관리 대시보드</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #f0f2f5; }
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        h2 { color: #1a73e8; }
-        button { padding: 10px 20px; background: #1a73e8; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        .song-item { border-bottom: 1px solid #eee; padding: 10px 0; display: flex; justify-content: space-between; }
+        :root { --primary: #1a73e8; --bg: #f8f9fa; }
+        body { font-family: 'Pretendard', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        h1 { text-align: center; color: var(--primary); }
+        h2 { border-bottom: 2px solid var(--primary); padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        button { padding: 8px 16px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #1557b0; }
+        .song-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; }
+        .song-item:last-child { border-bottom: none; }
+        .badge { background: #e8f0fe; color: var(--primary); padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h1>🎤 슈퍼 코인 노래방 대시보드</h1>
+    <div class="container">
+        <h1>🎤 슈퍼 코인 노래방 서비스</h1>
 
-    <div class="card">
-        <h2>🔥 실시간 인기 차트</h2>
-        <button onclick="getPopular()">차트 새로고침</button>
-        <div id="popular-list"></div>
-    </div>
+        <div class="card">
+            <h2>🔎 빠른 예약</h2>
+            <div style="display: flex; gap: 10px;">
+                <input type="number" id="songIdInput" placeholder="곡 ID 입력 (예: 1)" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <button onclick="enqueueSong()">예약하기</button>
+                <button onclick="enqueueSong(true)" style="background: #dc3545;">우선예약</button>
+            </div>
+        </div>
 
-    <div class="card">
-        <h2>⏳ 현재 대기열 (Room_A)</h2>
-        <button onclick="getQueue()">대기열 새로고침</button>
-        <div id="queue-list"></div>
+        <div class="card">
+            <h2>🔥 실시간 인기 차트 <button onclick="getPopular()">🔄</button></h2>
+            <div id="popular-list">차트를 불러오는 중...</div>
+        </div>
+
+        <div class="card">
+            <h2>⏳ 현재 대기열 <button onclick="getQueue()">🔄</button></h2>
+            <div id="queue-list">대기열이 비어있습니다.</div>
+        </div>
     </div>
 
     <script>
         const API_BASE = "http://127.0.0.1:8000/api/songs";
 
-        // 인기 차트 가져오기
+        // 1. 인기 차트 가져오기
         async function getPopular() {
-            const res = await fetch(`${API_BASE}/charts/popular`);
-            const data = await res.json();
-            const listDiv = document.getElementById('popular-list');
-            listDiv.innerHTML = data.map(s => `
-                <div class="song-item">
-                    <span><strong>${s.title}</strong> - ${s.artist}</span>
-                    <span>예약수: ${s.reserve_count}회</span>
-                </div>
-            `).join('');
+            try {
+                const res = await fetch(`${API_BASE}/charts/popular`);
+                const data = await res.json();
+                const listDiv = document.getElementById('popular-list');
+                listDiv.innerHTML = data.map(s => `
+                    <div class="song-item">
+                        <span><strong>${s.title}</strong> - ${s.artist}</span>
+                        <span class="badge">🔥 ${s.reserve_count}회 예약됨</span>
+                    </div>
+                `).join('') || "데이터가 없습니다.";
+            } catch (e) { console.error("차트 로딩 실패", e); }
         }
 
-        // 대기열 가져오기
+        // 2. 대기열 가져오기
         async function getQueue() {
-            const res = await fetch(`${API_BASE}/queue/list`); // 또는 /rooms/default_room/queue
-            const data = await res.json();
-            const listDiv = document.getElementById('queue-list');
-            listDiv.innerHTML = data.map(q => `
-                <div class="song-item">
-                    <span>${q.position}위. ${q.title}</span>
-                    <span>예약ID: ${q.id}</span>
-                </div>
-            `).join('');
+            try {
+                const res = await fetch(`${API_BASE}/queue/list`);
+                const data = await res.json();
+                const listDiv = document.getElementById('queue-list');
+                listDiv.innerHTML = data.map(q => `
+                    <div class="song-item">
+                        <span><b style="color:var(--primary)">${q.position}위</b> ${q.title} - ${q.artist}</span>
+                        <button onclick="cancelQueue(${q.id})" style="background:#bbb; font-size:12px;">취소</button>
+                    </div>
+                `).join('') || "현재 대기 중인 곡이 없습니다.";
+            } catch (e) { console.error("대기열 로딩 실패", e); }
         }
+
+        // 3. 곡 예약하기
+        async function enqueueSong(isPriority = false) {
+            const songId = document.getElementById('songIdInput').value;
+            if(!songId) return alert("곡 ID를 입력해주세요!");
+
+            try {
+                const res = await fetch(`${API_BASE}/${songId}/enqueue?is_priority=${isPriority}`, {
+                    method: 'POST'
+                });
+                const data = await res.json();
+                alert(data.message);
+                getQueue(); // 예약 후 대기열 갱신
+                getPopular(); // 인기 차트도 갱신될 수 있음
+            } catch (e) { alert("예약 실패! 서버를 확인하세요."); }
+        }
+
+        // 4. 예약 취소하기
+        async function cancelQueue(queueId) {
+            if(!confirm("정말 취소하시겠습니까?")) return;
+            await fetch(`${API_BASE}/queue/${queueId}`, { method: 'DELETE' });
+            getQueue();
+        }
+
+        // 초기 데이터 로딩
+        getPopular();
+        getQueue();
     </script>
 </body>
 </html>

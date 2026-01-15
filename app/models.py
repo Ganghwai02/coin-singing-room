@@ -87,3 +87,4 @@ class Queue(Base):
     song_id = Column(Integer, ForeignKey("songs.id"))
     position = Column(Integer)  # 순서
     created_at = Column(DateTime, default=datetime.utcnow)
+
