@@ -11,118 +11,110 @@ from pydantic import BaseModel
 router = APIRouter()
 
 # ==========================================================
-# [1번] 데이터 규격 정의 (Pydantic 스키마)
+# [1] 데이터 규격 정의 (Pydantic 스키마)
 # ==========================================================
-class SongResponse(BaseModel):
-    id: int
-    title: str
-    artist: str
-    is_premium: bool
-    video_url: Optional[str] = None
-    class Config: from_attributes = True
-
-class QueueResponse(BaseModel):
-    id: int
-    song_id: int
-    title: str
-    artist: str
-    position: int
-    class Config: from_attributes = True
-
 class ScoreRequest(BaseModel):
     song_id: int
     score: float
 
-class LyricsResponse(BaseModel):
-    song_id: int
-    title: str
-    lyrics: str
-    video_url: Optional[str] = None
-    sync_data: Optional[List[dict]] = []
-
-class PlayNextResponse(BaseModel):
-    song_id: int
-    title: str
-    video_url: Optional[str] = None
-    remaining_plays: int
-
 # ==========================================================
-# [2번] 예약 시스템 (Enqueue / List)
+# [2] 예약 기능 (프론트엔드 KaraokeAPI.enqueue와 연동)
 # ==========================================================
 @router.post("/{song_id}/enqueue")
-async def enqueue_song(song_id: int, room_id: str = "Room_A", is_priority: bool = False, db: Session = Depends(get_db)):
-    if is_priority:
-        db.query(Queue).filter(Queue.room_id == room_id).update({Queue.position: Queue.position + 1})
-        pos = 1
-    else:
-        last = db.query(Queue).filter(Queue.room_id == room_id).order_by(Queue.position.desc()).first()
-        pos = (last.position + 1) if last else 1
-    db.add(Queue(song_id=song_id, position=pos, room_id=room_id))
+async def enqueue_song(song_id: int, room_id: str = "Room_A", db: Session = Depends(get_db)):
+    song = db.query(Song).filter(Song.id == song_id).first()
+    if not song:
+        raise HTTPException(status_code=404, detail="곡을 찾을 수 없습니다.")
+
+    # 마지막 순번 찾기
+    last_item = db.query(Queue).filter(Queue.room_id == room_id).order_by(Queue.position.desc()).first()
+    next_pos = (last_item.position + 1) if last_item else 1
+    
+    new_queue = Queue(song_id=song_id, position=next_pos, room_id=room_id)
+    db.add(new_queue)
     db.commit()
-    return {"message": "예약 완료"}
-
-@router.get("/queue/list", response_model=List[QueueResponse])
-async def get_queue_list(room_id: str = "Room_A", db: Session = Depends(get_db)):
-    return db.query(Queue.id, Queue.song_id, Queue.position, Song.title, Song.artist)\
-             .join(Song).filter(Queue.room_id == room_id)\
-             .order_by(Queue.position).all()
+    return {"message": f"'{song.title}' 예약 완료!", "position": next_pos}
 
 # ==========================================================
-# [3번] 다음 곡 자동 재생 로직 (Dequeue + 횟수 차감)
+# [3] 다음 곡 재생 (프론트엔드 handlePlayNext와 연동)
 # ==========================================================
-@router.post("/queue/play-next", response_model=PlayNextResponse)
+@router.post("/queue/play-next")
 async def play_next(room_id: str = "Room_A", current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    # 1. 대기열에서 가장 첫 번째 곡 가져오기
     next_item = db.query(Queue).filter(Queue.room_id == room_id).order_by(Queue.position.asc()).first()
-    if not next_item: 
-        raise HTTPException(status_code=404, detail="대기열 비었음")
+    if not next_item:
+        raise HTTPException(status_code=404, detail="예약된 곡이 없습니다.")
     
-    song = db.query(Song).filter(Song.id == next_item.song_id).first()
-    
-    # 무료 사용자 일일 3회 제한 로직
+    # 2. 무료 사용자 일일 제한 체크 (사장님 원본 로직)
     if not current_user.is_premium:
         today = date.today()
         if current_user.last_active_date != today:
             current_user.daily_song_count = 0
             current_user.last_active_date = today
+        
         if current_user.daily_song_count >= 3:
-            raise HTTPException(status_code=403, detail="횟수 초과")
+            raise HTTPException(status_code=403, detail="오늘의 무료 곡(3곡)을 모두 사용하셨습니다.")
+        
         current_user.daily_song_count += 1
     
+    # 3. 곡 정보 추출 및 대기열 정리
+    song = db.query(Song).filter(Song.id == next_item.song_id).first()
     db.delete(next_item)
+    # 뒷번호 곡들 순서 앞으로 당기기
     db.query(Queue).filter(Queue.room_id == room_id, Queue.position > next_item.position).update({Queue.position: Queue.position - 1})
     db.commit()
     
     remaining = 999 if current_user.is_premium else (3 - current_user.daily_song_count)
-    return {"song_id": song.id, "title": song.title, "video_url": song.video_url, "remaining_plays": remaining}
+    
+    return {
+        "song_id": song.id,
+        "title": song.title,
+        "video_url": song.video_url, # 유튜브 연동 핵심
+        "remaining_plays": remaining
+    }
 
 # ==========================================================
-# [4번] 가사 및 싱크 데이터 조회
+# [4] 가사 데이터 제공 (프론트엔드 startLyrics와 연동)
 # ==========================================================
-@router.get("/{song_id}/lyrics", response_model=LyricsResponse)
+@router.get("/{song_id}/lyrics")
 async def get_lyrics(song_id: int, db: Session = Depends(get_db)):
     song = db.query(Song).filter(Song.id == song_id).first()
-    sync = [
+    if not song:
+        raise HTTPException(status_code=404, detail="곡 정보 없음")
+    
+    # 사장님, 여기에 실제 가사 DB가 없다면 아래처럼 샘플 싱크를 내려줍니다.
+    sample_sync = [
         {"time": 2, "text": "🎵 (전주 흐르는 중...)"},
         {"time": 5, "text": "첫 소절이 시작됩니다!"},
-        {"time": 10, "text": "신나는 노래방 코딩 시간~"},
-        {"time": 15, "text": "마지막 소절까지 힘내세요! 🎤"}
+        {"time": 10, "text": "화면의 가사를 보고 따라 불러보세요!"},
+        {"time": 15, "text": "마지막 소절입니다. 수고하셨습니다! 🎤"}
     ]
-    return {"song_id": song.id, "title": song.title, "lyrics": "가사", "video_url": song.video_url, "sync_data": sync}
+    
+    return {
+        "song_id": song.id,
+        "title": song.title,
+        "sync_data": sample_sync
+    }
 
 # ==========================================================
-# [5번] 점수 제출 & 100점 보너스 복구
+# [5] 점수 제출 & 보너스 (프론트엔드 handleFinish와 연동)
 # ==========================================================
 @router.post("/finish")
 async def finish_song(data: ScoreRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    message = f"기록 완료 ({data.score}점)"
+    msg = f"기록 완료! 점수: {data.score}점"
+    
+    # 100점 보너스 로직 (무료 사용자 횟수 복구)
     if data.score >= 100 and not current_user.is_premium and current_user.daily_song_count > 0:
         current_user.daily_song_count -= 1
-        message = "🎊 100점 보너스! 무료 횟수 복구 완료! 🎊"
+        msg = "🎊 대박! 100점 보너스로 무료 횟수가 1회 복구되었습니다! 🎊"
     
-    db.add(Recording(user_id=current_user.id, song_id=data.song_id, score=data.score))
+    # 녹음 기록 저장
+    new_record = Recording(user_id=current_user.id, song_id=data.song_id, score=data.score)
+    db.add(new_record)
     db.commit()
+    
     remaining = 999 if current_user.is_premium else (3 - current_user.daily_song_count)
-    return {"message": message, "remaining_plays": remaining}
+    return {"message": msg, "remaining_plays": remaining}
 
 # --- 6. 예약 시스템 & 우선 예약 (방 ID 지원 수정) ---
 @router.post("/{song_id}/enqueue", status_code=201)

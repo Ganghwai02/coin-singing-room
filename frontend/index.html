@@ -20,13 +20,13 @@
     </div>
 
     <div class="control-bar">
-        <button class="btn-play" onclick="playNextSong()">다음 곡 시작 (Dequeue)</button>
-        <button class="btn-score" onclick="KaraokeAPI.finishSong(currentSongId, 100).then(d => alert(d.message))">100점 테스트</button>
+        <button class="btn-play" onclick="handlePlayNext()">다음 곡 시작 (Dequeue)</button>
+        <button class="btn-score" onclick="handleFinish(100)">100점 테스트</button>
     </div>
 
     <div class="reservation">
         <input type="number" id="songIdInput" placeholder="ID" style="width:40px; padding:5px;">
-        <button onclick="KaraokeAPI.enqueue(document.getElementById('songIdInput').value).then(()=>alert('예약됨'))">예약</button>
+        <button onclick="KaraokeAPI.enqueue(document.getElementById('songIdInput').value).then(d=>alert(d.message))">예약</button>
     </div>
 
     <script src="https://www.youtube.com/iframe_api"></script>
