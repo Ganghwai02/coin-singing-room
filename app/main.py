@@ -23,7 +23,7 @@ def custom_openapi():
     openapi_schema = get_openapi(
         title=settings.APP_NAME,
         version=settings.VERSION,
-        description="SingStar API - 노래방 서비스 백엔드",
+        description="SingStar API - 슈퍼 코인 노래방",
         routes=app.routes,
     )
     
