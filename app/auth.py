@@ -15,6 +15,10 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # OAuth2 스키마 설정 (앞에 /를 붙여 절대 경로로 설정)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/users/login")
 
+def hash_password(password: str):
+    return pwd_context.hash(password)
+
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """비밀번호 검증"""
     return pwd_context.verify(plain_password, hashed_password)

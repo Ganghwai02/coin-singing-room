@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi  # 추가됨
 from app.config import settings
 from app.database import engine, Base
-from app.api import users, songs
+from app.api import users, songs, auth_router
 
 # DB 테이블 생성
 Base.metadata.create_all(bind=engine)
@@ -56,6 +56,7 @@ app.add_middleware(
 )
 
 # 라우터 등록
+app.include_router(auth_router.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(songs.router, prefix="/api/songs", tags=["songs"])
 

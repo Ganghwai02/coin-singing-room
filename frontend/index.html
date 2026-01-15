@@ -2,21 +2,30 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>PRACTICE MODE - 슈퍼 노래방</title>
+    <title>SingStar - PRACTICE MODE</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <div class="top-bar">
+        <div class="logo">SingStar ★</div>
         <div class="info-pill">남은 횟수: <span id="remainCount">3</span>회</div>
-        <div id="statusTitle" style="color: var(--neon-blue); font-weight: bold;">대기 중...</div>
-        <div class="info-pill">Room_A</div>
+        <div id="statusTitle">READY TO SING</div>
     </div>
+
+    <div class="audio-controls">
+    <button onclick="setPitch(0.9)">키 -</button>
+    <button onclick="setPitch(1.0)">원키</button>
+    <button onclick="setPitch(1.1)">키 +</button>
+    <input type="range" min="0" max="1" step="0.1" onchange="setVolume(this.value)"> 음량
+    </div>
+
 
     <div class="screen">
         <div id="player"></div>
         <div class="lyrics-overlay">
-            <div class="lyric-text" id="lyricCurrent">예약을 시작해 주세요</div>
+            <div class="lyric-text" id="lyricCurrent">곡을 예약해 주세요</div>
         </div>
+        <div class="pitch-bar"><div id="pitchProgress"></div></div>
     </div>
 
     <div class="control-bar">
@@ -24,13 +33,23 @@
         <button class="btn-score" onclick="handleFinish(100)">100점 테스트</button>
     </div>
 
-    <div class="reservation">
-        <input type="number" id="songIdInput" placeholder="ID" style="width:40px; padding:5px;">
+    <div class="reservation-box">
+        <input type="number" id="songIdInput" placeholder="곡 ID">
         <button onclick="KaraokeAPI.enqueue(document.getElementById('songIdInput').value).then(d=>alert(d.message))">예약</button>
     </div>
 
     <script src="https://www.youtube.com/iframe_api"></script>
     <script src="js/api.js"></script>
     <script src="js/player.js"></script>
+
+    <div id="myPage" style="display:none; position:fixed; right:0; top:0; width:300px; height:100%; background:rgba(0,0,0,0.9); border-left:1px solid var(--ss-purple); padding:20px; z-index:1000;">
+    <button onclick="document.getElementById('myPage').style.display='none'">닫기</button>
+    <h3>내 녹음 기록 🎙️</h3>
+    <div id="recordList" style="font-size:14px;">
+        </div>
+</div>
+
+<button onclick="loadMyRecords()" style="position:fixed; top:20px; right:20px; background:none; border:1px solid var(--ss-pink);">My Page</button>
+
 </body>
 </html>

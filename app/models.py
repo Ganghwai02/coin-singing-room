@@ -8,10 +8,10 @@ class User(Base):
     __tablename__ = "users"
     
     id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True, nullable=False)
     username = Column(String, nullable=False)
-    hashed_password = Column(String, nullable=False)
+    password = Column(String)
     is_premium = Column(Boolean, default=False)
+    is_monthly = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     plan_type = Column(String, default="FREE") # FREE, MONTHLY, PREMIUM
     daily_song_count = Column(Integer, default=0) # 오늘 부른 곡 수

@@ -1,21 +1,91 @@
-:root { --neon-blue: #00d4ff; --neon-pink: #ff00ff; --dark-bg: #050505; }
-body { background: var(--dark-bg); color: white; font-family: sans-serif; margin: 0; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+:root {
+    --ss-purple: #8e2de2;
+    --ss-pink: #f000ff;
+    --ss-dark: #0f0c29;
+    --ss-gradient: linear-gradient(45deg, #8e2de2, #f000ff);
+}
 
-/* 상단 정보바 */
-.top-bar { display: flex; justify-content: space-between; padding: 15px 40px; background: rgba(0,0,0,0.8); border-bottom: 1px solid #333; }
-.info-pill { background: rgba(255,255,255,0.1); padding: 5px 20px; border-radius: 20px; border: 1px solid var(--neon-blue); font-size: 14px; }
+body {
+    background-color: var(--ss-dark);
+    color: white;
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
 
-/* 메인 화면 레이아웃 */
-.screen { flex: 1; position: relative; background: #000; display: flex; align-items: center; justify-content: center; }
-#player { position: absolute; width: 100%; height: 100%; pointer-events: none; }
-.lyrics-overlay { position: absolute; bottom: 15%; width: 100%; text-align: center; background: rgba(0,0,0,0.5); padding: 20px 0; z-index: 5; }
-.lyric-text { font-size: 3rem; font-weight: bold; text-shadow: 2px 2px 10px #000; color: #fff; }
+/* 상단바 디자인 */
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 30px;
+    background: rgba(0,0,0,0.6);
+    border-bottom: 2px solid var(--ss-purple);
+}
 
-/* 하단 버튼 및 컨트롤 */
-.control-bar { background: #111; padding: 20px; display: flex; justify-content: center; gap: 15px; }
-button { padding: 12px 25px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
-.btn-play { background: var(--neon-blue); color: #000; }
-.btn-score { background: var(--neon-pink); color: #fff; }
+.logo {
+    font-size: 24px;
+    font-weight: bold;
+    background: var(--ss-gradient);
+    -webkit-background-clip: text; /* 구형 브라우저 호환 */
+    background-clip: text;         /* 표준 속성 추가 */
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+}
 
-/* 예약 팝업 */
-.reservation { position: absolute; top: 80px; left: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; border: 1px solid #444; z-index: 100; }
+/* 메인 스크린 */
+.screen {
+    flex: 1;
+    position: relative;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+#player { width: 100%; height: 100%; position: absolute; }
+
+.lyrics-overlay {
+    position: absolute;
+    bottom: 100px;
+    width: 100%;
+    text-align: center;
+    z-index: 10;
+}
+
+.lyric-text {
+    font-size: 2.5rem;
+    font-weight: bold;
+    text-shadow: 0 0 10px var(--ss-pink);
+}
+
+/* 하단 컨트롤 바 */
+.control-bar {
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    background: #111;
+}
+
+button {
+    padding: 15px 30px;
+    border-radius: 30px;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    background: var(--ss-gradient);
+    color: white;
+    box-shadow: 0 4px 15px rgba(240, 0, 255, 0.3);
+}
+
+.reservation-box {
+    position: absolute;
+    bottom: 100px;
+    right: 20px;
+    display: flex;
+    gap: 5px;
+}

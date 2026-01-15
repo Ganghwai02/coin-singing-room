@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>SingStar - 로그인 및 플랜 선택</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .auth-wrapper { height: 100vh; display: flex; justify-content: center; align-items: center; background: #0f0c29; }
+        .auth-box { background: rgba(255,255,255,0.05); padding: 50px; border-radius: 20px; border: 1px solid var(--ss-purple); text-align: center; width: 400px; }
+        .auth-input { width: 100%; padding: 12px; margin: 10px 0; background: #1a1a1a; border: 1px solid #333; color: white; border-radius: 5px; }
+        .plan-card-group { display: flex; gap: 10px; margin: 20px 0; }
+        .plan-card { flex: 1; padding: 15px 5px; border: 1px solid #444; border-radius: 10px; cursor: pointer; font-size: 12px; transition: 0.3s; }
+        .plan-card.active { border-color: var(--ss-pink); background: rgba(240, 0, 255, 0.1); box-shadow: 0 0 15px var(--ss-pink); }
+        .btn-auth { width: 100%; padding: 15px; margin-top: 20px; background: var(--ss-gradient); border: none; color: white; font-weight: bold; border-radius: 30px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="auth-wrapper">
+        <div class="auth-box">
+            <h1 class="logo">SingStar ★</h1>
+            <p style="margin-bottom: 30px; color: #aaa;">원하시는 플랜을 선택하고 시작하세요</p>
+            
+            <input type="text" id="username" class="auth-input" placeholder="아이디">
+            <input type="password" id="password" class="auth-input" placeholder="비밀번호">
+
+            <div class="plan-card-group">
+                <div class="plan-card active" id="plan-free" onclick="selectPlan('free')">
+                    <b>FREE</b><br>3곡/일<br>광고있음
+                </div>
+                <div class="plan-card" id="plan-monthly" onclick="selectPlan('monthly')">
+                    <b>MONTHLY</b><br>9,900원<br>무제한
+                </div>
+                <div class="plan-card" id="plan-premium" onclick="selectPlan('premium')">
+                    <b>PREMIUM</b><br>99,000원<br>AI 코칭
+                </div>
+            </div>
+
+            <button class="btn-auth" onclick="performRegister()">가입 및 결제 시뮬레이션</button>
+            <p style="margin-top:20px; font-size:13px; cursor:pointer;" onclick="performLogin()">이미 계정이 있나요? 로그인</p>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+        let currentPlan = 'free';
+        function selectPlan(plan) {
+            currentPlan = plan;
+            document.querySelectorAll('.plan-card').forEach(el => el.classList.remove('active'));
+            document.getElementById(`plan-${plan}`).classList.add('active');
+        }
+
+        async function performRegister() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            if(!user || !pass) return alert("입력창을 채워주세요!");
+            
+            // 결제 시뮬레이션 알림
+            if(currentPlan !== 'free') alert(`[결제 승인] ${currentPlan} 플랜 결제가 완료되었습니다.`);
+            
+            // API 호출 (가입)
+            const success = await AuthAPI.register(user, pass, currentPlan);
+            if(success) performLogin();
+        }
+
+        async function performLogin() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            await AuthAPI.login(user, pass);
+        }
+    </script>
+</body>
+</html>
