@@ -66,63 +66,21 @@ class LyricsResponse(BaseModel):
     sync_data: Optional[List[dict]] = [] # 싱크 데이터 필드 추가
 # --- API 엔드포인트 ---
 
-# 1. 곡 목록 조회
+# 1. 곡 목록 (검색/필터 포함)
 @router.get("/", response_model=List[SongResponse])
-async def get_songs(
-    search: Optional[str] = Query(None, description="곡명, 가수 검색"),
-    genre: Optional[str] = Query(None, description="장르 필터"),
-    is_premium: Optional[bool] = Query(None, description="프리미엄 곡만"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+async def get_songs(search: Optional[str] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     query = db.query(Song)
     if search:
         query = query.filter(or_(Song.title.ilike(f"%{search}%"), Song.artist.ilike(f"%{search}%")))
-    if genre:
-        query = query.filter(Song.genre == genre)
-    if is_premium is not None:
-        query = query.filter(Song.is_premium == is_premium)
-    
-    songs = query.offset(skip).limit(limit).all()
-    favorite_song_ids = {fav.song_id for fav in db.query(Favorite).filter(Favorite.user_id == current_user.id).all()}
-    
-    return [{**song.__dict__, "is_favorited": song.id in favorite_song_ids} for song in songs]
+    songs = query.limit(20).all()
+    fav_ids = {f.song_id for f in db.query(Favorite).filter(Favorite.user_id == current_user.id).all()}
+    return [{**s.__dict__, "is_favorited": s.id in fav_ids} for s in songs]
 
-# 2. 곡 상세 정보
-@router.get("/{song_id}", response_model=SongDetail)
-async def get_song(song_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    song = db.query(Song).filter(Song.id == song_id).first()
-    if not song:
-        raise HTTPException(status_code=404, detail="곡을 찾을 수 없습니다")
-    
-    if song.is_premium and not current_user.is_premium:
-        raise HTTPException(status_code=403, detail="프리미엄 구독이 필요한 곡입니다")
-    
-    is_favorited = db.query(Favorite).filter(Favorite.user_id == current_user.id, Favorite.song_id == song_id).first() is not None
-    
-    return {**song.__dict__, "created_at": song.created_at.isoformat(), "is_favorited": is_favorited}
-
-# 3. 노래 등록
-@router.post("/", status_code=201)
-async def create_song(song_data: SongCreate, db: Session = Depends(get_db)):
-    new_song = Song(**song_data.dict())
-    db.add(new_song)
-    db.commit()
-    db.refresh(new_song)
-    return new_song
-
-# 4. 곡 재생 (일일 제한 로직)
+# 2. 곡 재생 (일일 제한 로직 포함)
 @router.post("/{song_id}/play", response_model=PlayResponse)
-async def play_song(
-    song_id: int, 
-    current_user: User = Depends(get_current_user), 
-    db: Session = Depends(get_db)
-):
+async def play_song(song_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     song = db.query(Song).filter(Song.id == song_id).first()
-    if not song:
-        raise HTTPException(status_code=404, detail="곡을 찾을 수 없습니다")
+    if not song: raise HTTPException(status_code=404, detail="곡 없음")
 
     today = date.today()
     if current_user.last_active_date != today:
@@ -130,37 +88,60 @@ async def play_song(
         current_user.last_active_date = today
         db.commit()
 
-    if song.is_premium and not current_user.is_premium:
-        raise HTTPException(status_code=403, detail="프리미엄 구독이 필요한 곡입니다")
-
-    if current_user.is_premium:
-        remaining = 999 
-    else:
+    if not current_user.is_premium:
         if current_user.daily_song_count >= 3:
             raise HTTPException(status_code=403, detail="오늘의 무료 곡(3곡)을 모두 사용하셨습니다.")
-        
         current_user.daily_song_count += 1
         db.commit()
-        db.refresh(current_user)
-        remaining = 3 - current_user.daily_song_count
+    
+    remaining = 999 if current_user.is_premium else (3 - current_user.daily_song_count)
+    return {"success": True, "message": f"'{song.title}' 재생 시작!", "remaining_plays": remaining, "song_id": song.id, "title": song.title}
 
-    return {
-        "success": True,
-        "message": f"'{song.title}' 재생을 시작합니다!",
-        "remaining_plays": remaining,
-        "song_id": song.id,
-        "title": song.title
-    }
-
-# --- 5. 즐겨찾기 관련 ---
-@router.post("/{song_id}/favorite")
-async def add_favorite(song_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    existing = db.query(Favorite).filter(Favorite.user_id == current_user.id, Favorite.song_id == song_id).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="이미 즐겨찾기된 곡입니다")
-    db.add(Favorite(user_id=current_user.id, song_id=song_id))
+# 3. 예약 & 우선 예약 (멀티룸)
+@router.post("/{song_id}/enqueue")
+async def enqueue_song(song_id: int, room_id: str = "Room_A", is_priority: bool = False, db: Session = Depends(get_db)):
+    if is_priority:
+        db.query(Queue).filter(Queue.room_id == room_id).update({Queue.position: Queue.position + 1})
+        pos = 1
+    else:
+        last = db.query(Queue).filter(Queue.room_id == room_id).order_by(Queue.position.desc()).first()
+        pos = (last.position + 1) if last else 1
+    db.add(Queue(song_id=song_id, position=pos, room_id=room_id))
     db.commit()
-    return {"message": "즐겨찾기에 추가되었습니다"}
+    return {"message": "예약 완료"}
+
+@router.get("/queue/list")
+async def get_queue_list(room_id: str = "Room_A", db: Session = Depends(get_db)):
+    return db.query(Queue.id, Queue.song_id, Queue.position, Song.title, Song.artist).join(Song).filter(Queue.room_id == room_id).order_by(Queue.position).all()
+
+# 4. 종료 & 100점 보너스 로직
+@router.post("/finish")
+async def finish_song(data: ScoreRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    message = f"점수: {data.score}점"
+    if data.score >= 100 and not current_user.is_premium and current_user.daily_song_count > 0:
+        current_user.daily_song_count -= 1 # 횟수 복구
+        message = "🎊 100점 보너스! 무료 횟수 1회 복구! 🎊"
+    
+    db.add(Recording(user_id=current_user.id, song_id=data.song_id, score=data.score))
+    db.commit()
+    return {"message": message, "remaining_plays": 3 - current_user.daily_song_count if not current_user.is_premium else 999}
+
+# 5. 다음 곡 자동 재생 (Dequeue)
+@router.post("/queue/play-next")
+async def play_next(room_id: str = "Room_A", current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    next_item = db.query(Queue).filter(Queue.room_id == room_id).order_by(Queue.position.asc()).first()
+    if not next_item: raise HTTPException(status_code=404, detail="대기열 비었음")
+    
+    # 재생 로직 (횟수 차감)
+    if not current_user.is_premium:
+        if current_user.daily_song_count >= 3: raise HTTPException(status_code=403, detail="횟수 초과")
+        current_user.daily_song_count += 1
+    
+    song = db.query(Song).filter(Song.id == next_item.song_id).first()
+    db.delete(next_item)
+    db.query(Queue).filter(Queue.room_id == room_id).update({Queue.position: Queue.position - 1})
+    db.commit()
+    return {"song_id": song.id, "title": song.title}
 
 # --- 6. 예약 시스템 & 우선 예약 (방 ID 지원 수정) ---
 @router.post("/{song_id}/enqueue", status_code=201)
