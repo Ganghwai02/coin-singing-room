@@ -40,6 +40,7 @@
 ## 현재 기능 오류
 - 프리미엄 요금제가 아닌 무료 요금제 사용중인 사용자 일일 가능 곡 3곡으로 제한.(제한이 걸리지않는 문제)
 <img width="954" height="1076" alt="image" src="https://github.com/user-attachments/assets/4f434171-3272-48c1-ab21-12afe2fba482" />
+
 무료 요금제 하루 3곡 제한이 걸리지않는 문제 해결.
 
 
