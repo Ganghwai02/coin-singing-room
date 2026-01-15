@@ -28,21 +28,35 @@ async function startKaraoke() {
     }
 }
 
-async function loadMyRecords() {
-    document.getElementById('myPage').style.display = 'block';
-    // 백엔드에서 내 기록 가져오기 (api.js에 추가 필요)
-    try {
-        const records = await KaraokeAPI.getMyBest(); 
-        const listDiv = document.getElementById('recordList');
-        listDiv.innerHTML = records.map(r => 
-            `<div style="margin-bottom:10px; border-bottom:1px solid #333;">
-                ${r.title} - <b>${r.score}점</b><br><small>${r.created_at}</small>
-            </div>`
-        ).join('');
-    } catch(e) {
-        alert("유료 회원 전용 기능입니다!");
+async function checkUserStatus() {
+    const token = localStorage.getItem("token");
+    if (!token) {
+        alert("로그인이 필요한 서비스입니다.");
+        location.href = "auth.html";
+        return;
+    }
+
+    // 백엔드에서 내 정보 가져오기
+    const response = await fetch("http://127.0.0.1:8000/api/auth/me", {
+        headers: { "Authorization": `Bearer ${token}` }
+    });
+
+    if (response.ok) {
+        const user = await response.json();
+        console.log("현재 유저 정보:", user);
+        
+        // 사장님 기획: 프리미엄이 아니면 광고 로직 실행
+        if (!user.is_premium && !user.is_monthly) {
+            setupAds(); 
+        } else {
+            document.getElementById('ad-banner').style.display = 'none';
+            alert(`${user.username}님, 프리미엄 혜택이 적용 중입니다!`);
+        }
     }
 }
+
+// 페이지 로드 시 바로 실행
+window.onload = checkUserStatus;
 
 // 오디오 컨텍스트 설정 (음향 효과용)
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -74,4 +88,25 @@ function setEcho(delayTime) {
     delay.connect(feedback);
     feedback.connect(delay);
     // 실제 오디오 소스와 연결하는 로직이 추가로 필요합니다.
+}
+
+
+function setupAds() {
+    const playBtn = document.getElementById('play-btn'); // 노래 시작 버튼
+    playBtn.onclick = function() {
+        const overlay = document.getElementById('ad-overlay');
+        const timerEl = document.getElementById('ad-timer');
+        overlay.style.display = 'block';
+        
+        let count = 5;
+        const interval = setInterval(() => {
+            count--;
+            timerEl.innerText = count;
+            if (count <= 0) {
+                clearInterval(interval);
+                overlay.style.display = 'none';
+                startKaraoke(); // 실제 노래 시작 함수
+            }
+        }, 1000);
+    };
 }
