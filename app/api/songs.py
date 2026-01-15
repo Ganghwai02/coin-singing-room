@@ -58,6 +58,12 @@ class ScoreRequest(BaseModel):
     song_id: int
     score: float
 
+
+class LyricsResponse(BaseModel):
+    song_id: int
+    title: str
+    lyrics: str # 가사 전체 내용
+
 # --- API 엔드포인트 ---
 
 # 1. 곡 목록 조회
@@ -281,3 +287,44 @@ async def play_next_in_queue(
         "remaining_plays": 3 - current_user.daily_song_count if not current_user.is_premium else 999,
         "song_id": song.id
     }
+
+# --- 10. 멀티룸 시스템 (Room-based Queue) ---
+
+# 내 현재 방의 대기열만 조회 (기존 조회 수정 버전)
+@router.get("/rooms/{room_id}/queue", response_model=List[QueueResponse])
+async def get_room_queue(room_id: str, db: Session = Depends(get_db)):
+    return db.query(Queue.id, Queue.song_id, Queue.position, Song.title, Song.artist)\
+             .join(Song).filter(Queue.room_id == room_id)\
+             .order_by(Queue.position).all()
+
+# --- 11. 가사 서비스 (Lyrics) ---
+
+@router.get("/{song_id}/lyrics", response_model=LyricsResponse)
+async def get_song_lyrics(song_id: int, db: Session = Depends(get_db)):
+    song = db.query(Song).filter(song_id == song_id).first()
+    if not Song:
+        raise HTTPException(status_code=404, detail="곡을 찾을 수 없습니다.")
+    
+    # 실제 환경에서는 lyrics_path의 파일을 읽어오지만, 여기선 예시 텍스트를 반환합니다.
+    sample_lyrics = f"[{song.title} - 가사]\n이 노래는 즐거운 노래입니다...\n라라라라~"
+
+    return {
+        "song_id": song_id,
+        "title": song.title,
+        "lyrics": song.audio_path if song.audio_path else sample_lyrics # 경로가 있으면 경로 출력
+    }
+
+# --- 12. 친구 시스템 (Friendship & Social) ---
+
+# 친구 점수 랭킹 (전체 유저 대상 혹은 친구 필터)
+@router.get("/social/leaderboard")
+async def get_social_leaderboard(db: Session = Depends(get_db)):
+    # 유저별 최고 점수를 집계하여 랭킹 생성
+    leaderboard = db.query(
+        User.username,
+        func.max(Recording.score).label('top_score')
+    ).join(Recording, User.id == Recording.user_id())\
+    .order_by(func.max(Recording.score).desc())\
+    .limit(10).all()
+
+    return [dict(row.mapping) for row in leaderboard]
