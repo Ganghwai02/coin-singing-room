@@ -117,21 +117,47 @@ function updateQueueUI() {
         : reservationQueue.map(s => `<div class="reserve-item">🎵 ${s}</div>`).join('');
 }
 
-// [4. 노래방 실행 로직]
 function startNextSong() {
     if (reservationQueue.length === 0) return alert("예약된 노래가 없습니다!");
-    if (userPlan === "free" && remainSongs <= 0) {
-        return alert("😭 오늘 준비된 곡을 모두 사용하셨습니다! 프리미엄으로 무제한 즐겨보세요.");
-    }
+    if (userPlan === "free" && remainSongs <= 0) return alert("😭 무료 곡을 모두 사용하셨습니다!");
 
     const song = reservationQueue.shift();
-    if (userPlan === "free") {
-        remainSongs--;
-        localStorage.setItem("remainSongs", remainSongs);
+    if (userPlan === "free") { 
+        remainSongs--; 
+        localStorage.setItem("remainSongs", remainSongs); 
     }
     
-    updateUI();
+    updateUI(); 
     updateQueueUI();
+    
+    // 1. 노래방 뷰 보이기
+    const kView = document.getElementById("karaoke-view");
+    if(kView) kView.style.display = "flex";
+    
+    // 2. 유튜브 검색 결과에서 첫 번째 영상을 바로 재생할 수 있는 임베드 링크 생성
+    // (검색어로 바로 연결되는 임베드 방식은 유튜브 정책상 제약이 있을 수 있어 '유튜브 내 검색결과'를 iframe에 띄웁니다)
+    const ytPlayer = document.getElementById("yt-player");
+    if(ytPlayer) {
+        // 검색어를 포함한 유튜브 임베드 검색 결과 페이지
+        const searchUrl = `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(song + " 노래방")}&autoplay=1`;
+        
+        ytPlayer.innerHTML = `
+            <iframe 
+                width="100%" 
+                height="100%" 
+                src="${searchUrl}" 
+                title="SingStar Player" 
+                frameborder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                allowfullscreen>
+            </iframe>
+        `;
+    }
+    
+    // 3. 마이크 및 점수 기능 시작
+    startVisualizer();
+    setupScore();
+}
 
     document.getElementById("karaoke-view").style.display = "flex";
 
@@ -164,7 +190,6 @@ function startNextSong() {
 
     startVisualizer(); 
     setupScore();
-}
 
 function loadYoutubeVideo(song) {
     const searchQuery = encodeURIComponent(song + " 노래방");
