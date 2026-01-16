@@ -27,16 +27,12 @@
         .main-search { width: 100%; padding: 18px 30px; border-radius: 40px; border: 1px solid #333; background: #1a1a2e; color: white; font-size: 16px; outline: none; box-sizing: border-box; transition: 0.3s; }
         .main-search:focus { border-color: var(--ss-pink); box-shadow: 0 0 15px rgba(255, 0, 123, 0.3); }
 
-        /* 인기 차트 */
+        /* 인기 차트 & 버튼 */
         #chart-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; margin-top: 25px; }
         .chart-card { display: flex; align-items: center; background: rgba(255, 255, 255, 0.03); padding: 15px 20px; border-radius: 18px; border: 1px solid rgba(255, 255, 255, 0.05); }
         .rank-num { font-size: 22px; font-weight: 900; color: var(--ss-pink); margin-right: 15px; font-style: italic; }
         .song-info { flex: 1; }
-        .song-title { font-weight: bold; margin-bottom: 4px; }
-        .song-artist { font-size: 12px; opacity: 0.6; }
-        .card-btns { display: flex; gap: 5px; }
-        .btn-reserve { background: var(--ss-pink); color: white; border: none; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 11px; }
-        .btn-direct { background: var(--ss-purple); color: white; border: none; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 11px; }
+        .btn-reserve { background: var(--ss-pink); color: white; border: none; padding: 8px 15px; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 12px; }
 
         /* 결제 카드 */
         .billing-grid { display: flex; gap: 30px; margin-top: 30px; }
@@ -45,14 +41,16 @@
         .badge-sale { position: absolute; top: 20px; right: -35px; background: gold; color: black; font-size: 12px; padding: 5px 40px; transform: rotate(45deg); font-weight: bold; }
         .btn-action { background: var(--ss-pink); color: white; border: none; padding: 15px; border-radius: 15px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 20px; }
 
-        /* 노래방 뷰 */
+        /* 노래방 뷰 (HUD & Visualizer) */
         #karaoke-view { display: none; position: fixed; inset: 0; background: #000; z-index: 9000; flex-direction: column; align-items: center; justify-content: center; }
         .audio-panel { display: flex; gap: 40px; margin-top: 30px; background: rgba(255,255,255,0.1); padding: 20px 50px; border-radius: 100px; backdrop-filter: blur(15px); }
         #visualizer { position: absolute; bottom: 130px; width: 50%; height: 80px; z-index: 9999; pointer-events: none; }
 
-        /* 모달 */
+        /* 결과 모달 */
         #score-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000; align-items: center; justify-content: center; backdrop-filter: blur(15px); }
         .score-card { background: linear-gradient(135deg, #1a1a2e 0%, #0b0915 100%); padding: 50px; border-radius: 40px; border: 2px solid var(--ss-pink); text-align: center; box-shadow: 0 0 50px rgba(255, 0, 123, 0.4); max-width: 400px; width: 90%; }
+        .share-btns { display: flex; gap: 10px; margin-top: 30px; }
+        .btn-kakao { background: #fee500; color: #3c1e1e; flex: 1; padding: 15px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; }
 
         .content-section { display: none; animation: fadeIn 0.4s; }
         .content-section.active { display: block; }
@@ -64,7 +62,7 @@
 
     <div class="sidebar">
         <div class="user-card">
-            <h3 id="display-name" style="margin:0;">사용자</h3>
+            <h3 id="display-name" style="margin:0;">아이유좋아용</h3>
             <p id="user-status" style="font-size:11px; margin:5px 0; opacity:0.8;">FREE MEMBER</p>
             <div style="font-size:11px;">남은 곡수: <span id="remain-songs-val">3</span>곡</div>
         </div>
@@ -76,13 +74,14 @@
         </ul>
         <div class="reserve-box">
             <div style="font-size:12px; color:var(--ss-pink); font-weight:bold; margin-bottom:10px;">📋 예약 목록</div>
-            <div id="reserve-list"><div class="reserve-item">곡을 예약해주세요</div></div>
+            <div id="reserve-list"></div>
         </div>
     </div>
 
     <div class="main-view">
         <div class="search-container">
-            <input type="text" id="main-search-input" class="main-search" placeholder="제목이나 가수를 입력하세요 (실시간 예약)" onkeyup="if(event.key==='Enter')manualSearch()">
+            <input type="text" id="main-search-input" class="main-search" placeholder="제목이나 가수를 입력하세요 (실시간 검색)" onkeyup="showSuggestions(this.value)">
+            <div id="search-suggestions" style="display: none; position: absolute; top: 65px; left: 0; width: 100%; background: #1a1a2e; border: 1px solid #333; border-radius: 20px; z-index: 5000; overflow: hidden;"></div>
         </div>
 
         <section id="section-home" class="content-section active">
@@ -116,31 +115,55 @@
                 <label style="font-size:12px; color:#888;">닉네임 변경</label>
                 <input type="text" id="edit-nickname" style="width:100%; padding:15px; margin:15px 0; border-radius:12px; border:1px solid #333; background:#000; color:white; box-sizing:border-box;">
                 <button class="btn-action" onclick="updateNickname()">저장하기</button>
+
                 <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:30px 0;">
-                <button onclick="doLogout()" style="width:100%; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 12px; border-radius: 12px; cursor: pointer; font-weight: bold;">로그아웃</button>
+
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button onclick="doLogout(event)" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 12px; border-radius: 12px; cursor: pointer; font-weight: bold;">로그아웃</button>
+                    <button onclick="deleteAccount(event)" style="background: none; color: #ff4d4d; border: 1px solid #ff4d4d; padding: 12px; border-radius: 12px; cursor: pointer; font-size: 13px; margin-top: 10px;">회원 탈퇴</button>
+                </div>
             </div>
         </section>
     </div>
 
     <div id="karaoke-view">
-        <button onclick="exitKaraoke()" style="position: absolute; top: 30px; left: 30px; z-index: 9999; background: var(--ss-pink); color: white; border: none; padding: 15px 25px; border-radius: 50px; font-weight: 900; cursor: pointer;">✕ 종료 및 점수보기</button>
+        <button onclick="exitKaraoke()" style="position: absolute; top: 30px; left: 30px; z-index: 9999; background: var(--ss-pink); color: white; border: none; padding: 15px 25px; border-radius: 50px; font-weight: 900; cursor: pointer; box-shadow: 0 0 20px rgba(255, 0, 123, 0.5); font-size: 16px;">✕ 종료 및 점수보기</button>
+
         <div id="live-hud" style="position:absolute; top:30px; right:40px; text-align:right; z-index: 9999;">
             <div style="font-size:12px; opacity:0.7; color:white;">LIVE SCORE</div>
             <div id="live-score" style="font-size:50px; font-weight: 900; color: #fff; text-shadow: 0 0 20px var(--ss-pink);">0</div>
         </div>
+
         <div id="yt-player" style="width:85%; aspect-ratio:16/9; border-radius:30px; overflow:hidden; border: 4px solid rgba(255,255,255,0.1); z-index: 9001;"></div>
+
         <canvas id="visualizer"></canvas>
+
+        <div class="audio-panel" style="z-index: 9999; margin-top: 20px;">
+            <div style="text-align:center;"><label style="font-size:10px; color:var(--ss-pink);">VOLUME</label><br><input type="range"></div>
+            <div style="text-align:center;"><label style="font-size:10px; color:var(--ss-pink);">ECHO</label><br><input type="range"></div>
+            <div style="text-align:center;">
+                <label style="font-size:10px; color:var(--ss-pink);">KEY</label><br>
+                <button class="btn-reserve" style="width:30px; height:30px; border-radius:50%;" onclick="changeKey(-1)">-</button>
+                <span id="key-val" style="margin:0 15px; font-weight:bold;">0</span>
+                <button class="btn-reserve" style="width:30px; height:30px; border-radius:50%;" onclick="changeKey(1)">+</button>
+            </div>
+        </div>
     </div>
 
     <div id="score-modal">
         <div class="score-card">
             <h1 style="color:var(--ss-pink); margin:0;">CONGRATS!</h1>
+            <p style="opacity:0.6;">오늘의 노래 실력은?</p>
             <div id="final-score" style="font-size: 80px; font-weight: 900; margin: 20px 0; color:white;">0</div>
             <p id="score-comment" style="font-weight: bold; color: #00f2ff;">가수 데뷔하셔도 되겠어요! 🎤</p>
-            <button class="btn-action" onclick="closeScore()">닫기</button>
+            
+            <div class="share-btns">
+                <button class="btn-kakao" onclick="shareKakao()">카톡으로 자랑하기</button>
+                <button class="btn-action" style="margin-top:0; flex:1;" onclick="closeScore()">닫기</button>
+            </div>
         </div>
     </div>
 
-    <script src="main.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>
