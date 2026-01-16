@@ -27,15 +27,13 @@ let scoreInterval, clubModeInterval;
 // [2. 페이지 초기화]
 window.onload = () => {
     const savedNick = localStorage.getItem("nickname");
-    // 보안: 닉네임 없으면 인증 페이지로 튕기기
     if (!savedNick) { window.location.href = "auth.html"; return; }
     
     document.getElementById("display-name").innerText = savedNick;
     renderCharts();
     updateUI();
-    updateQueueUI(); // 초기 예약 목록 표시
+    updateQueueUI(); 
     
-    // 검색창 엔터 이벤트 연결 (ID: main-search-input)
     const searchInput = document.getElementById("main-search-input");
     if(searchInput) {
         searchInput.addEventListener("keypress", (e) => {
@@ -51,7 +49,7 @@ function updateUI() {
     
     const statusEl = document.getElementById("user-status");
     const songEl = document.getElementById("remain-songs-val");
-    const userCard = document.getElementById("user-card-ui"); // 수정된 ID 대응
+    const userCard = document.getElementById("user-card-ui");
 
     if (statusEl) {
         statusEl.innerText = isPremium ? "VIP PREMIUM MEMBER" : "FREE MEMBER";
@@ -82,6 +80,35 @@ function luckyDraw() {
     const selected = charts[randomIndex];
     if(confirm(`🎲 추천곡: [ ${selected.artist} - ${selected.title} ]\n지금 바로 예약할까요?`)) {
         addToQueue(`${selected.artist} ${selected.title}`);
+    }
+}
+
+// [결제 기능 연동 - 통합 버전]
+function upgradePlan() {
+    const IMP = window.IMP; 
+    IMP.init("imp74433100"); // 포트원 테스트 가맹점 코드
+
+    if(confirm("VIP 프리미엄(무제한 곡 이용)으로 업그레이드 하시겠습니까?")) {
+        IMP.request_pay({
+            pg: "html5_inicis", 
+            pay_method: "card",
+            merchant_uid: "order_" + new Date().getTime(),
+            name: "SingStar VIP 프리미엄",
+            amount: 9900, 
+            buyer_email: "test@singstar.com",
+            buyer_name: localStorage.getItem("nickname") || "사용자",
+            buyer_tel: "010-1234-5678",
+        }, function (rsp) {
+            if (rsp.success) {
+                localStorage.setItem("userPlan", "premium");
+                userPlan = "premium";
+                updateUI();
+                alert("결제가 완료되었습니다! 이제 무제한으로 즐기세요! 🎙️✨");
+                changeTab(document.querySelector('.nav-menu li:nth-child(3)'), 'billing');
+            } else {
+                alert("결제에 실패했습니다. 에러: " + rsp.error_msg);
+            }
+        });
     }
 }
 
@@ -135,14 +162,13 @@ function renderCharts() {
 // [6. 노래방 실행 로직]
 function playNow(name) {
     if (userPlan === "free" && remainSongs <= 0) return alert("😭 무료 곡을 모두 소진하셨습니다. 멤버십을 이용해보세요!");
-    reservationQueue.unshift(name); // 즉시 부르기는 맨 앞으로
+    reservationQueue.unshift(name);
     startNextSong();
 }
 
 function addToQueue(name) {
     reservationQueue.push(name);
     updateQueueUI();
-    // 첫 예약이라면 안내 메시지
     if(reservationQueue.length === 1) alert(`'${name}' 예약 완료! '다음 곡 시작'을 눌러주세요.`);
 }
 
@@ -157,12 +183,11 @@ function updateQueueUI() {
 }
 
 function startNextSong() {
-    if (reservationQueue.length === 0) return alert("예약된 노래가 없습니다! 노래를 먼저 선택해주세요.");
+    if (reservationQueue.length === 0) return alert("예약된 노래가 없습니다!");
     
-    // 무료 사용자 체크
     if (userPlan === "free") {
         let songs = parseInt(localStorage.getItem("remainSongs") || 3);
-        if (songs <= 0) return alert("😭 무료 곡 소진! 멤버십 결제가 필요합니다.");
+        if (songs <= 0) return alert("😭 무료 곡 소진!");
         songs--;
         localStorage.setItem("remainSongs", songs);
         remainSongs = songs;
@@ -172,10 +197,8 @@ function startNextSong() {
     updateUI();
     updateQueueUI();
     
-    const karaokeView = document.getElementById("karaoke-view");
-    karaokeView.style.display = "flex";
+    document.getElementById("karaoke-view").style.display = "flex";
     
-    // 광고 레이아웃 (무료 사용자용)
     if (userPlan === "free") {
         document.getElementById("yt-player").innerHTML = `
             <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; background:#111; color:white;">
@@ -186,10 +209,7 @@ function startNextSong() {
         const adInt = setInterval(() => {
             t--;
             if(document.getElementById("ad-timer")) document.getElementById("ad-timer").innerText = t;
-            if(t <= 0) { 
-                clearInterval(adInt); 
-                loadYoutubeVideo(song); 
-            }
+            if(t <= 0) { clearInterval(adInt); loadYoutubeVideo(song); }
         }, 1000);
     } else {
         loadYoutubeVideo(song);
@@ -223,7 +243,7 @@ function toggleClubMode() {
             const colors = ["#ff007b33", "#7d2ae833", "#00ffcc33", "#ffcc0033", "#0b0915"];
             document.body.style.background = colors[Math.floor(Math.random() * colors.length)];
         }, 300);
-        alert("🌈 클럽 모드 가동! 분위기를 올려보세요!");
+        alert("🌈 클럽 모드 가동!");
     }
 }
 
@@ -240,7 +260,6 @@ function setupScore() {
     if(scoreInterval) clearInterval(scoreInterval);
     
     scoreInterval = setInterval(() => {
-        // 소리가 일정 크기 이상일 때만 점수 상승
         if (currentVolume > 20) {
             currentScoreValue += Math.floor(Math.random() * 5) + 1;
             if (currentScoreValue > 100) currentScoreValue = 100;
@@ -263,24 +282,18 @@ async function startVisualizer() {
         canvas = document.getElementById("visualizer");
         if(!canvas) return;
         canvasCtx = canvas.getContext("2d");
-
-        // 캔버스 크기 최적화
         canvas.width = canvas.offsetWidth;
         canvas.height = canvas.offsetHeight;
 
         const draw = () => {
             animationId = requestAnimationFrame(draw);
             analyser.getByteFrequencyData(dataArray);
-            
             let sum = 0;
             for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
             currentVolume = sum / dataArray.length;
-
             canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-            
             const barWidth = (canvas.width / dataArray.length) * 2;
             let x = 0;
-
             for(let i = 0; i < dataArray.length; i++) {
                 const barHeight = (dataArray[i] / 255) * canvas.height;
                 canvasCtx.fillStyle = `hsl(${280 + (i * 2)}, 100%, 60%)`;
@@ -289,36 +302,27 @@ async function startVisualizer() {
             }
         };
         draw();
-    } catch (e) {
-        console.error("마이크 연결 실패:", e);
-    }
+    } catch (e) { console.error("마이크 연결 실패:", e); }
 }
 
 // [9. 종료 및 모달]
 function exitKaraoke() {
-    // 리소스 해제
     document.getElementById("yt-player").innerHTML = "";
     clearInterval(scoreInterval);
     if(clubModeInterval) { clearInterval(clubModeInterval); clubModeInterval = null; }
     document.body.style.background = "#0b0915";
     cancelAnimationFrame(animationId);
     if(audioCtx) audioCtx.close();
-    
     showResult(currentScoreValue);
 }
 
 function showResult(score) {
     const finalScoreEl = document.getElementById("final-score");
     const scoreModal = document.getElementById("score-modal");
-    
-    // 최소 점수 보정 (노래를 불렀다면 60점 이상)
     let displayScore = score < 10 ? 0 : (score < 60 ? score + 40 : score);
     if(displayScore > 100) displayScore = 100;
-
     if(finalScoreEl) finalScoreEl.innerText = displayScore;
     if(scoreModal) scoreModal.style.display = "flex";
-    
-    // 점수에 따른 멘트 변경
     const commentEl = document.getElementById("score-comment");
     if(commentEl) {
         if(displayScore >= 90) commentEl.innerText = "가수 데뷔하셔도 되겠는데요? 🎤";
@@ -331,33 +335,29 @@ function closeScore() {
     document.getElementById("score-modal").style.display = "none";
     document.getElementById("karaoke-view").style.display = "none";
     if(document.getElementById("live-score")) document.getElementById("live-score").innerText = "0";
-    currentKey = 0; // 키 초기화
+    currentKey = 0; 
 }
 
 function changeTab(el, tabId) {
     document.querySelectorAll('.nav-menu li').forEach(li => li.classList.remove('active'));
     el.classList.add('active');
-    
     document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
     const targetSection = document.getElementById('section-' + tabId);
     if(targetSection) targetSection.classList.add('active');
-    
-    // 애창곡 탭 클릭 시 애창곡 리스트 갱신
     if(tabId === 'favs') renderFavorites();
 }
 
 function renderFavorites() {
     const favList = document.getElementById("fav-list");
     if(!favList) return;
-    
     if(favorites.length === 0) {
-        favList.innerHTML = `<p style="text-align:center; opacity:0.5; padding:50px;">아직 추가된 애창곡이 없습니다.<br>인기 차트에서 ❤️를 눌러보세요!</p>`;
+        favList.innerHTML = `<p style="text-align:center; opacity:0.5; padding:50px;">아직 추가된 애창곡이 없습니다.</p>`;
         return;
     }
-    
     favList.innerHTML = favorites.map(songName => {
-        const [artist, ...titleArr] = songName.split(' ');
-        const title = titleArr.join(' ');
+        const parts = songName.split(' ');
+        const artist = parts[0];
+        const title = parts.slice(1).join(' ');
         return `
             <div class="chart-card">
                 <div class="song-info">
@@ -373,33 +373,18 @@ function renderFavorites() {
     }).join('');
 }
 
-function upgradePlan() {
-    if(confirm("VIP 프리미엄(무제한 곡 이용)으로 업그레이드 하시겠습니까?")) {
-        localStorage.setItem("userPlan", "premium");
-        userPlan = "premium";
-        updateUI();
-        alert("축하합니다! 이제 광고 없이 무제한으로 즐기세요! 🎙️✨");
-        // 현재 화면 갱신
-        changeTab(document.querySelector('.nav-menu li:nth-child(3)'), 'billing');
-    }
-}
-
 function toggleFavorite(songName) {
     const index = favorites.indexOf(songName);
-    if (index > -1) {
-        favorites.splice(index, 1);
-    } else {
-        favorites.push(songName);
-    }
+    if (index > -1) { favorites.splice(index, 1); } 
+    else { favorites.push(songName); }
     localStorage.setItem("favorites", JSON.stringify(favorites));
     renderCharts();
-    renderFavorites(); // 애창곡 탭에 있을 때도 즉시 반영
+    renderFavorites(); 
 }
 
 function doLogout() {
     if(confirm("정말 로그아웃 하시겠습니까?")) {
         localStorage.removeItem("nickname");
-        // 곡 수와 플랜은 유지하려면 clear 대신 removeItem 사용
         window.location.href = "auth.html";
     }
 }
