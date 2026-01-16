@@ -169,19 +169,38 @@ function showYoutubeLink(song) {
 // [점수 및 부가 기능]
 function setupScore() {
     let currentScore = 0;
+    comboCount = 0;
     document.getElementById("live-score").innerText = "0";
+    
     if(scoreInterval) clearInterval(scoreInterval);
+    
     scoreInterval = setInterval(() => {
-        if (currentVolume > 30) {
-            const gain = Math.floor(Math.random() * 5) + 1;
+        const scoreEl = document.getElementById("live-score");
+        
+        // [수정] 기준점을 35에서 50으로 높였습니다. 
+        // 50 이하는 '숨소리나 잡음'으로 간주하고 점수를 주지 않습니다.
+        if (currentVolume > 50) { 
+            comboCount++; 
+            
+            // 점수가 오르는 속도도 살짝 조절 (너무 쉽게 100점 나오지 않게)
+            let gain = 0;
+            if (currentVolume > 80) gain = Math.floor(Math.random() * 3) + 2; // 열창 시 2~4점
+            else gain = Math.floor(Math.random() * 2) + 1; // 평범하게 부를 때 1~2점
+            
             currentScore += gain;
             if (currentScore > 100) currentScore = 100;
-            const scoreEl = document.getElementById("live-score");
+
             scoreEl.innerText = currentScore;
-            scoreEl.style.transform = "scale(1.2)";
+            scoreEl.style.color = "var(--ss-pink)";
+            scoreEl.style.transform = "scale(1.3)";
             setTimeout(() => scoreEl.style.transform = "scale(1)", 100);
+
+        } else {
+            // 소리가 작으면(50 이하) 점수 상승 중단 및 색상 변경
+            comboCount = 0;
+            scoreEl.style.color = "#444"; // 어둡게 죽임
         }
-    }, 1500);
+    }, 1000); 
 }
 
 async function startVisualizer() {
@@ -261,4 +280,32 @@ function updateNickname() {
 function doLogout() {
     localStorage.removeItem("nickname");
     window.location.href = "auth.html";
+}
+
+
+// [메뉴 탭 전환 함수]
+function changeTab(el, tabId) {
+    // 1. 모든 메뉴 버튼에서 'active' 클래스 제거
+    document.querySelectorAll('.nav-menu li').forEach(li => {
+        li.classList.remove('active');
+    });
+
+    // 2. 현재 클릭한 메뉴 버튼에 'active' 클래스 추가
+    if (el) el.classList.add('active');
+
+    // 3. 모든 섹션(.content-section) 숨기기
+    document.querySelectorAll('.content-section').forEach(sec => {
+        sec.classList.remove('active');
+        sec.style.display = 'none'; // 확실하게 숨김
+    });
+
+    // 4. 선택한 섹션만 보이기
+    const targetSection = document.getElementById('section-' + tabId);
+    if (targetSection) {
+        targetSection.classList.add('active');
+        targetSection.style.display = 'block'; // 확실하게 보여줌
+        
+        // 차트 탭을 누를 경우 리스트 다시 그리기 (혹시 모르니까요!)
+        if (tabId === 'chart') renderCharts();
+    }
 }
