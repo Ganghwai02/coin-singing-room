@@ -131,3 +131,17 @@ button {
     filter: brightness(1.2) !important;
     box-shadow: 0 0 15px rgba(255, 255, 255, 0.3) !important;
 }
+
+@media (max-width: 768px) {
+    .chart-grid {
+        grid-template-columns: 1fr; /* 폰에서는 1줄로 보이게 */
+        gap: 10px;
+    }
+    .auth-card {
+        width: 90%;
+        padding: 30px 20px;
+    }
+    .song-title {
+        font-size: 14px;
+    }
+}
