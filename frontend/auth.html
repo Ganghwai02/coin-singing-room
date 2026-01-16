@@ -63,7 +63,7 @@
     let currentPlan = 'free';
     let isLoginMode = false;
 
-    // 1. 요금제 선택 함수 (정상 작동 확인)
+    // 1. 요금제 선택 함수
     function selectPlan(plan) {
         if (isLoginMode) return; 
         currentPlan = plan;
@@ -72,7 +72,7 @@
         console.log("선택된 플랜:", currentPlan);
     }
 
-    // 2. 모드 전환 함수 (에러 해결 포인트!)
+    // 2. 모드 전환 함수
     function toggleMode() {
         isLoginMode = !isLoginMode;
         const btn = document.getElementById('main-btn');
@@ -81,12 +81,12 @@
 
         if (isLoginMode) {
             btn.innerText = "로그인하기";
-            btn.onclick = doLogin; // 클릭 시 doLogin 실행하도록 연결
+            btn.onclick = doLogin; 
             text.innerHTML = "처음이신가요? <b>회원가입하기</b>";
             planGroup.style.opacity = "0.3"; 
         } else {
             btn.innerText = "가입 및 시작하기";
-            btn.onclick = doRegister; // 클릭 시 doRegister 실행하도록 연결
+            btn.onclick = doRegister; 
             text.innerHTML = "이미 계정이 있나요? <b>로그인하기</b>";
             planGroup.style.opacity = "1";
         }
@@ -103,24 +103,34 @@
         const success = await AuthAPI.register(user, pass, currentPlan);
         if(success) {
             alert("가입 성공! 로그인을 진행합니다.");
-            await doLogin();
+            // 가입 성공 후 데이터 저장 처리를 위해 doLogin 호출
+            await doLogin(); 
         } else {
             alert("가입 실패: 중복된 아이디거나 서버 오류입니다.");
         }
     }
 
-    // 4. 로그인 실행
+    // 4. 로그인 실행 (★ 핵심 수정 부분)
     async function doLogin() {
-        const user = document.getElementById('user').value;
-        const pass = document.getElementById('pass').value;
-        if(!user || !pass) return alert("아이디와 비번을 입력해주세요!");
+    const user = document.getElementById('user').value;
+    const pass = document.getElementById('pass').value;
+    if(!user || !pass) return alert("아이디와 비번을 입력해주세요!");
 
-        const success = await AuthAPI.login(user, pass);
-        if(success) {
-            alert("로그인 성공! 환영합니다.");
-            location.href = "index.html";
-        } else {
-            alert("로그인 실패: 정보를 다시 확인하세요.");
+    const success = await AuthAPI.login(user, pass);
+    
+    if(success) {
+        localStorage.setItem("nickname", user); 
+        
+        const savedPlan = localStorage.getItem("userPlan");
+        
+        if(!savedPlan) {
+            localStorage.setItem("userPlan", currentPlan);
         }
+
+        alert("로그인 성공! 환영합니다.");
+        location.href = "index.html"; 
+    } else {
+        alert("로그인 실패: 정보를 다시 확인하세요.");
     }
+}
 </script>
