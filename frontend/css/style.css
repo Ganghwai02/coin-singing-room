@@ -3,6 +3,7 @@
     --ss-pink: #f000ff;
     --ss-dark: #0f0c29;
     --ss-gradient: linear-gradient(45deg, #8e2de2, #f000ff);
+    --glass: rgba(255, 255, 255, 0.1);
 }
 
 body {
@@ -15,7 +16,7 @@ body {
     flex-direction: column;
 }
 
-/* 상단바 디자인 */
+/* 상단바 */
 .top-bar {
     display: flex;
     justify-content: space-between;
@@ -29,10 +30,9 @@ body {
     font-size: 24px;
     font-weight: bold;
     background: var(--ss-gradient);
-    -webkit-background-clip: text; /* 구형 브라우저 호환 */
-    background-clip: text;         /* 표준 속성 추가 */
+    -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
-    color: transparent;
 }
 
 /* 메인 스크린 */
@@ -46,9 +46,9 @@ body {
     align-items: center;
 }
 
-
 #player { width: 100%; height: 100%; position: absolute; }
 
+/* 가사 오버레이 */
 .lyrics-overlay {
     position: absolute;
     bottom: 100px;
@@ -63,85 +63,80 @@ body {
     text-shadow: 0 0 10px var(--ss-pink);
 }
 
-/* 하단 컨트롤 바 */
-.control-bar {
-    padding: 20px;
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    background: #111;
-}
+/* [버튼 디자인] - 사장님 스타일 유지 및 보강 */
 
+/* 기본 버튼 공통 */
 button {
-    padding: 15px 30px;
+    padding: 12px 25px;
     border-radius: 30px;
     border: none;
     font-weight: bold;
     cursor: pointer;
-    background: var(--ss-gradient);
-    color: white;
-    box-shadow: 0 4px 15px rgba(240, 0, 255, 0.3);
+    transition: 0.3s;
+    font-family: inherit;
 }
 
-.reservation-box {
-    position: absolute;
-    bottom: 100px;
-    right: 20px;
-    display: flex;
-    gap: 5px;
+/* 1. 카톡 자랑 & 닫기 버튼 (결과창) */
+.share-btns {
+    display: flex !important;
+    gap: 10px !important;
+    width: 100% !important;
+    margin-top: 20px !important;
 }
 
+.btn-kakao {
+    background: #fee500 !important;
+    color: #3c1e1e !important;
+    flex: 1 !important;
+}
 
-/* 차트 카드 내부 버튼 정렬 */
+.btn-close {
+    background: #444 !important;
+    color: white !important;
+    flex: 1 !important;
+}
+
+/* 2. 변경 저장 & 결제 버튼 (내 정보/멤버십) */
+.btn-action {
+    width: 100% !important;
+    background: var(--ss-gradient) !important;
+    color: white !important;
+    padding: 15px !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 15px rgba(240, 0, 255, 0.3) !important;
+}
+
+/* 3. 차트 내부 버튼 (바로부르기/예약) */
 .card-btns {
     display: flex !important;
     gap: 10px !important;
-    margin-left: auto !important; /* 오른쪽 정렬 */
+    margin-left: auto !important;
 }
 
-/* 바로부르기 버튼 (블루 네온) */
 .btn-direct {
     background: linear-gradient(135deg, #007bff, #00c6ff) !important;
     color: white !important;
-    border: none !important;
     padding: 8px 15px !important;
-    border-radius: 20px !important; /* 둥글게 */
-    cursor: pointer !important;
-    font-weight: bold !important;
+    border-radius: 20px !important;
     font-size: 12px !important;
-    transition: 0.3s !important;
 }
 
-/* 예약 버튼 (핑크 네온) */
 .btn-reserve {
     background: linear-gradient(135deg, #ff007b, #ff5e62) !important;
     color: white !important;
-    border: none !important;
     padding: 8px 15px !important;
     border-radius: 20px !important;
-    cursor: pointer !important;
-    font-weight: bold !important;
     font-size: 12px !important;
-    transition: 0.3s !important;
 }
 
-/* 마우스 올렸을 때 효과 */
-.btn-direct:hover, .btn-reserve:hover {
+/* 호버 공통 */
+button:hover {
     transform: scale(1.05) !important;
     filter: brightness(1.2) !important;
-    box-shadow: 0 0 15px rgba(255, 255, 255, 0.3) !important;
 }
 
+/* 반응형 */
 @media (max-width: 768px) {
-    .chart-grid {
-        grid-template-columns: 1fr; /* 폰에서는 1줄로 보이게 */
-        gap: 10px;
-    }
-    .auth-card {
-        width: 90%;
-        padding: 30px 20px;
-    }
-    .song-title {
-        font-size: 14px;
-    }
+    .chart-grid { grid-template-columns: 1fr; gap: 10px; }
+    .song-title { font-size: 14px; }
 }
