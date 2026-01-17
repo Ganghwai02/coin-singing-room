@@ -1,4 +1,3 @@
-// [1. 상태 관리 데이터]
 let userPlan = localStorage.getItem("userPlan") || "free";
 let remainSongs = (userPlan === "premium") ? "∞" : parseInt(localStorage.getItem("remainSongs") || 3);
 let reservationQueue = [];
@@ -73,8 +72,6 @@ function updateUI() {
 }
 
 // [4. 기능 구현]
-
-// 🎲 랜덤 추천
 function luckyDraw() {
     const randomIndex = Math.floor(Math.random() * charts.length);
     const selected = charts[randomIndex];
@@ -83,10 +80,9 @@ function luckyDraw() {
     }
 }
 
-// [결제 기능 연동 - 통합 버전]
 function upgradePlan() {
     const IMP = window.IMP; 
-    IMP.init("imp74433100"); // 포트원 테스트 가맹점 코드
+    IMP.init("imp74433100"); 
 
     if(confirm("VIP 프리미엄(무제한 곡 이용)으로 업그레이드 하시겠습니까?")) {
         IMP.request_pay({
@@ -104,7 +100,6 @@ function upgradePlan() {
                 userPlan = "premium";
                 updateUI();
                 alert("결제가 완료되었습니다! 이제 무제한으로 즐기세요! 🎙️✨");
-                changeTab(document.querySelector('.nav-menu li:nth-child(3)'), 'billing');
             } else {
                 alert("결제에 실패했습니다. 에러: " + rsp.error_msg);
             }
@@ -112,12 +107,10 @@ function upgradePlan() {
     }
 }
 
-// 👤 닉네임 변경
 function updateNickname() {
     const input = document.getElementById("edit-nickname");
     const newNick = input?.value.trim();
     if(!newNick) return alert("변경할 닉네임을 입력해주세요!");
-    
     localStorage.setItem("nickname", newNick);
     document.getElementById("display-name").innerText = newNick;
     input.value = "";
@@ -127,17 +120,13 @@ function updateNickname() {
 function manualSearch() {
     const input = document.getElementById("main-search-input");
     const val = input?.value.trim();
-    if(val) {
-        addToQueue(val);
-        input.value = "";
-    }
+    if(val) { addToQueue(val); input.value = ""; }
 }
 
 // [5. 차트 렌더링]
 function renderCharts() {
     const chartList = document.getElementById("chart-list");
     if(!chartList) return;
-    
     chartList.innerHTML = charts.map((song, index) => {
         const songName = `${song.artist} ${song.title}`;
         const isFav = favorites.includes(songName);
@@ -169,17 +158,14 @@ function playNow(name) {
 function addToQueue(name) {
     reservationQueue.push(name);
     updateQueueUI();
-    if(reservationQueue.length === 1) alert(`'${name}' 예약 완료! '다음 곡 시작'을 눌러주세요.`);
 }
 
 function updateQueueUI() {
     const list = document.getElementById("reserve-list");
     if (!list) return;
-    if (reservationQueue.length === 0) {
-        list.innerHTML = '<div class="reserve-item" style="opacity:0.5; text-align:center;">예약된 노래가 없습니다.</div>';
-    } else {
-        list.innerHTML = reservationQueue.map((s, i) => `<div class="reserve-item">${i+1}. ${s}</div>`).join('');
-    }
+    list.innerHTML = reservationQueue.length === 0 ? 
+        '<div class="reserve-item" style="opacity:0.5; text-align:center;">예약된 노래가 없습니다.</div>' : 
+        reservationQueue.map((s, i) => `<div class="reserve-item">${i+1}. ${s}</div>`).join('');
 }
 
 function startNextSong() {
@@ -199,38 +185,36 @@ function startNextSong() {
     
     document.getElementById("karaoke-view").style.display = "flex";
     
-    if (userPlan === "free") {
-        document.getElementById("yt-player").innerHTML = `
-            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; background:#111; color:white;">
-                <p style="color:var(--ss-pink);">무료 회원은 광고 시청 후 시작됩니다.</p>
-                <h1 id="ad-timer" style="font-size:80px;">5</h1>
-            </div>`;
-        let t = 5;
-        const adInt = setInterval(() => {
-            t--;
-            if(document.getElementById("ad-timer")) document.getElementById("ad-timer").innerText = t;
-            if(t <= 0) { clearInterval(adInt); loadYoutubeVideo(song); }
-        }, 1000);
-    } else {
-        loadYoutubeVideo(song);
-    }
+    // 🛑 저작권 및 정책 해결: 새 창 열기 안내 화면 구성
+    const ytContainer = document.getElementById("yt-player");
+    const q = encodeURIComponent(song + " 노래방");
+    const ytUrl = `https://www.youtube.com/results?search_query=${q}`;
+
+    ytContainer.innerHTML = `
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; background:#1a1a2e; color:white; border-radius:20px; border:2px dashed #ff007b; padding:40px; text-align:center;">
+            <div style="font-size:60px; margin-bottom:20px;">🎤</div>
+            <h2 style="margin:0 0 10px 0;">'${song}' 준비 완료!</h2>
+            <p style="opacity:0.7; margin-bottom:30px;">저작권 보호를 위해 영상은 공식 유튜브 탭에서 재생됩니다.</p>
+            
+            <button onclick="window.open('${ytUrl}', '_blank')" 
+                style="padding:20px 50px; background:#ff0000; color:white; border:none; border-radius:50px; font-weight:bold; font-size:20px; cursor:pointer; box-shadow: 0 10px 30px rgba(255,0,0,0.4); transition:0.3s;"
+                onmouseover="this.style.transform='scale(1.05)'"
+                onmouseout="this.style.transform='scale(1)'">
+                📺 유튜브에서 반주 틀기
+            </button>
+            
+            <p style="margin-top:30px; font-size:14px; color:#aaa;">※ 영상을 틀고 다시 이 앱으로 돌아와 노래를 불러주세요!</p>
+        </div>`;
+
+    // 팝업 시도 (사용자 클릭 시에는 무조건 열림)
+    window.open(ytUrl, '_blank');
 
     startVisualizer();
     setupScore();
 }
 
-function loadYoutubeVideo(song) {
-    const q = encodeURIComponent(song + " 노래방");
-    const ytContainer = document.getElementById("yt-player");
-    if(ytContainer) {
-        ytContainer.innerHTML = `
-            <iframe id="yt-frame" 
-                src="https://www.youtube.com/embed/videoseries?listType=search&list=${q}&autoplay=1&enablejsapi=1" 
-                style="width:100%; height:100%; border:none;" 
-                allow="autoplay; encrypted-media" 
-                allowfullscreen></iframe>`;
-    }
-}
+// loadYoutubeVideo 함수는 이제 startNextSong에서 통합 처리하므로 비워둡니다.
+function loadYoutubeVideo(song) {}
 
 // [7. 특수 기능]
 function toggleClubMode() {
@@ -253,19 +237,24 @@ function changeKey(val) {
     if(keyValEl) keyValEl.innerText = (currentKey > 0 ? "+" : "") + currentKey;
 }
 
-// [8. 점수 및 시각화]
+// [8. 점수 및 시각화 - 마이크 감도 보정]
 function setupScore() {
     currentScoreValue = 0;
     const liveScoreEl = document.getElementById("live-score");
     if(scoreInterval) clearInterval(scoreInterval);
     
     scoreInterval = setInterval(() => {
-        if (currentVolume > 20) {
-            currentScoreValue += Math.floor(Math.random() * 5) + 1;
+        // 임계값을 20에서 40~50 정도로 높여서 작은 소음에는 점수가 안 오르게 합니다.
+        // 주변이 시끄럽다면 이 숫자를 더 높여보세요.
+        if (currentVolume > 45) { 
+            // 목소리가 클수록 점수가 더 많이 오를 확률 추가
+            const bonus = currentVolume > 70 ? 3 : 1; 
+            currentScoreValue += Math.floor(Math.random() * 3) + bonus;
+            
             if (currentScoreValue > 100) currentScoreValue = 100;
             if (liveScoreEl) liveScoreEl.innerText = currentScoreValue;
         }
-    }, 1500);
+    }, 1000); // 1.5초에서 1초로 조정하여 더 실시간 반응 유도
 }
 
 async function startVisualizer() {
@@ -275,34 +264,52 @@ async function startVisualizer() {
         analyser = audioCtx.createAnalyser();
         const source = audioCtx.createMediaStreamSource(stream);
         source.connect(analyser);
-        
-        analyser.fftSize = 128;
+
+        // 1. 선명도를 위해 fftSize를 다시 256 이상으로 올립니다 (막대 개수 증가)
+        analyser.fftSize = 512; 
         dataArray = new Uint8Array(analyser.frequencyBinCount);
         
         canvas = document.getElementById("visualizer");
         if(!canvas) return;
         canvasCtx = canvas.getContext("2d");
-        canvas.width = canvas.offsetWidth;
-        canvas.height = canvas.offsetHeight;
 
         const draw = () => {
             animationId = requestAnimationFrame(draw);
             analyser.getByteFrequencyData(dataArray);
-            let sum = 0;
-            for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-            currentVolume = sum / dataArray.length;
+            
+            let max = 0;
+            for(let i = 0; i < dataArray.length; i++) {
+                if(dataArray[i] > max) max = dataArray[i];
+            }
+            currentVolume = (max / 255) * 100; 
+
+            // 2. 캔버스를 더 깨끗하게 비우고 배경색 설정
             canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-            const barWidth = (canvas.width / dataArray.length) * 2;
+            
+            // 3. 막대 간격을 좁히고 색상을 더 선명하게 (그라데이션 효과)
+            const barWidth = (canvas.width / dataArray.length) * 2.5;
             let x = 0;
+
             for(let i = 0; i < dataArray.length; i++) {
                 const barHeight = (dataArray[i] / 255) * canvas.height;
-                canvasCtx.fillStyle = `hsl(${280 + (i * 2)}, 100%, 60%)`;
-                canvasCtx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
+                
+                // 색상을 더 촘촘하고 밝게 변경 (HSL 값 조정)
+                // 소리 크기에 따라 밝기(Lightness)가 변하도록 하여 생동감 부여
+                const hue = 280 + (i * 1.2); 
+                const lightness = currentVolume > 10 ? 60 : 30; 
+                
+                canvasCtx.fillStyle = `hsl(${hue}, 100%, ${lightness}%)`;
+                
+                // 막대 끝을 둥글게 하거나 그림자 효과를 주면 더 선명해 보입니다.
+                canvasCtx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
+                
                 x += barWidth;
             }
         };
         draw();
-    } catch (e) { console.error("마이크 연결 실패:", e); }
+    } catch (e) { 
+        console.error("마이크 연결 실패:", e);
+    }
 }
 
 // [9. 종료 및 모달]
@@ -323,12 +330,6 @@ function showResult(score) {
     if(displayScore > 100) displayScore = 100;
     if(finalScoreEl) finalScoreEl.innerText = displayScore;
     if(scoreModal) scoreModal.style.display = "flex";
-    const commentEl = document.getElementById("score-comment");
-    if(commentEl) {
-        if(displayScore >= 90) commentEl.innerText = "가수 데뷔하셔도 되겠는데요? 🎤";
-        else if(displayScore >= 70) commentEl.innerText = "와우! 정말 잘 부르시네요! 🔥";
-        else commentEl.innerText = "즐거웠으면 된 거죠! 한 곡 더? 😊";
-    }
 }
 
 function closeScore() {
@@ -354,23 +355,17 @@ function renderFavorites() {
         favList.innerHTML = `<p style="text-align:center; opacity:0.5; padding:50px;">아직 추가된 애창곡이 없습니다.</p>`;
         return;
     }
-    favList.innerHTML = favorites.map(songName => {
-        const parts = songName.split(' ');
-        const artist = parts[0];
-        const title = parts.slice(1).join(' ');
-        return `
-            <div class="chart-card">
-                <div class="song-info">
-                    <div class="song-title">${title}</div>
-                    <div class="song-artist">${artist}</div>
-                </div>
-                <div class="card-btns">
-                    <span onclick="toggleFavorite('${songName}')" style="cursor:pointer; font-size:20px; margin-right:12px;">❤️</span>
-                    <button class="btn-direct" onclick="playNow('${songName}')">부르기</button>
-                    <button class="btn-reserve" onclick="addToQueue('${songName}')">예약</button>
-                </div>
-            </div>`;
-    }).join('');
+    favList.innerHTML = favorites.map(songName => `
+        <div class="chart-card">
+            <div class="song-info">
+                <div class="song-title">${songName}</div>
+            </div>
+            <div class="card-btns">
+                <span onclick="toggleFavorite('${songName}')" style="cursor:pointer; font-size:20px; margin-right:12px;">❤️</span>
+                <button class="btn-direct" onclick="playNow('${songName}')">부르기</button>
+                <button class="btn-reserve" onclick="addToQueue('${songName}')">예약</button>
+            </div>
+        </div>`).join('');
 }
 
 function toggleFavorite(songName) {
