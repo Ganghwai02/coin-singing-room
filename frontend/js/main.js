@@ -173,7 +173,6 @@ function startNextSong() {
                 style="padding:15px 30px; background:#ff0000; color:white; border:none; border-radius:30px; font-weight:bold; cursor:pointer; font-size:18px;">
                 📺 유튜브 열기
             </button>
-            <button onclick="exitKaraoke()" style="margin-top:25px; background:none; border:1px solid #444; color:#666; cursor:pointer; padding:5px 10px; border-radius:5px; font-size:12px;">(노래가 끝났다면 여기를 클릭)</button>
         </div>
     `;
 
