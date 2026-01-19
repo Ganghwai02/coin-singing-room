@@ -1,26 +1,23 @@
-let userPlan = localStorage.getItem("userPlan") || "free";
-let remainSongs = (userPlan === "premium") ? "∞" : parseInt(localStorage.getItem("remainSongs") || 3);
-let reservationQueue = [];
-let currentVolume = 0;
-let favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
-let currentScoreValue = 0;
-let currentKey = 0; 
-let currentAudio = null; 
-let audioCtx, analyser, dataArray, canvas, canvasCtx, animationId;
-let scoreInterval;
+window.userPlan = localStorage.getItem("userPlan") || "free";
+window.remainSongs = (window.userPlan === "premium") ? "∞" : parseInt(localStorage.getItem("remainSongs") || 3);
+window.reservationQueue = [];
+window.favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
 
-// [전역 변수: 조명 제어용]
+let currentAudio = null;
+let currentVolume = 0;
+let currentScoreValue = 0;
+let currentKey = 0;
+let audioCtx, analyser, dataArray, canvas, canvasCtx, animationId, scoreInterval;
 let isClubOn = false;
 let clubInterval = null;
 
-// [1. 차트 데이터]
 const charts = [
     { title: "[TJ노래방] 에피소드 - 이무진", artist: "이무진" },
     { title: "[TJ노래방] Love wins all - IU", artist: "아이유" },
     { title: "[TJ노래방] 밤양갱 - 비비(BIBI)", artist: "비비" },
     { title: "[TJ노래방] Hype boy - NewJeans", artist: "NewJeans" },
     { title: "[TJ노래방] Seven(Clean Ver.) - 정국(Feat.Latto)", artist: "정국" },
-    { title: "[TJ노래방   MR Live] 첫만남은계획대로되지않아 - TWS(투어스)", artist: "TWS" },
+    { title: "[TJ노래방  MR Live] 첫만남은계획대로되지않아 - TWS(투어스)", artist: "TWS" },
     { title: "[TJ노래방] Super Lady - (여자)아이들", artist: "(여자)아이들" },
     { title: "[TJ노래방] To. X - 태연(TAEYEON)", artist: "태연" },
     { title: "[TJ노래방] Love 119 - RIIZE", artist: "RIIZE" },
@@ -37,187 +34,229 @@ const charts = [
     { title: "[TJ노래방] 한페이지가될수있게 - 데이식스(DAY6)", artist: "DAY6" }
 ];
 
-// [2. 가사 데이터베이스]
-const songContent = {
-    "[TJ노래방] 에피소드 - 이무진": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 13, text: "언제였을까 우리 처음 만난 날" }, { time: 18, text: "기억나니 그날의 공기" }] },
-    "[TJ노래방] Love wins all - IU": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 15, text: "Dearest Darling 나의 그대" }, { time: 21, text: "나를 데려가 줄래" }] },
-    "[TJ노래방] 밤양갱 - 비비(BIBI)": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 14, text: "떠나는 길에 니가 내게 말했지" }, { time: 18, text: "너는 바라는 게 너무나 많아" }] },
-    "[TJ노래방] Hype boy - NewJeans": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 8, text: "Baby, got me looking so crazy" }] },
-    "[TJ노래방] Seven(Clean Ver.) - 정국(Feat.Latto)": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 15, text: "Monday Tuesday Wednesday Thursday" }] },
-    "[TJ노래방   MR Live] 첫만남은계획대로되지않아 - TWS(투어스)": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 10, text: "거울 속의 내 모습은 너무 어색해" }] },
-    "[TJ노래방] Super Lady - (여자)아이들": { lyrics: [{ time: 0, text: "🎵 Super Lady - (여자)아이들" }, { time: 6, text: "Follow me, follow me, follow me" }] },
-    "[TJ노래방] To. X - 태연(TAEYEON)": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 8, text: "처음 본 너의 그 눈빛이" }] },
-    "[TJ노래방] Love 119 - RIIZE": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 10, text: "어디선가 본 것 같은 눈빛" }] },
-    "[TJ노래방] Perfect Night - LE SSERAFIM(르세라핌)": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 7, text: "I'm not looking for a lover" }] },
-    "[TJ노래방] Drama - 에스파(aespa)": { lyrics: [{ time: 0, text: "🎵 Drama-ma-ma-ma" }, { time: 9, text: "I bring, I bring all the Drama" }] },
-    "[TJ노래방] 헤어지자말해요 - 박재정": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 18, text: "헤어지자 말해요 내가 먼저 말할게" }] },
-    "[TJ노래방] I AM - IVE(아이브)": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 12, text: "다른 문을 열어 따라와" }] },
-    "[TJ노래방] Ditto - NewJeans": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 15, text: "Stay in the middle Like you a little" }] },
-    "[TJ노래방] 응급실(쾌걸춘향OST) - izi": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 20, text: "후회하고 있어요 우리 다투던 그날" }] },
-    "[TJ노래방] 가시 - 버즈": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 15, text: "너 없는 지금도 눈부신 하늘과" }] },
-    "[TJ노래방] 체념 - 빅마마": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 25, text: "행복해보여 난 네가 참 좋아" }] },
-    "[TJ노래방] 소주한잔 - 임창정": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 22, text: "술이 한 잔 생각나는 밤" }] },
-    "[TJ노래방] Welcome to the Show - 데이식스(DAY6)": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 12, text: "이게 우리의 시작이야" }] },
-    "[TJ노래방] 한페이지가될수있게 - 데이식스(DAY6)": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 10, text: "솔직히 말할게 많이 기다려왔어" }] }
-};
-
-// [3. 페이지 초기화]
+// [2. 초기화]
 window.onload = () => {
     const savedNick = localStorage.getItem("nickname");
     if (!savedNick) { window.location.href = "auth.html"; return; }
-    document.getElementById("display-name").innerText = savedNick;
-    renderCharts();
-    updateUI();
-    updateQueueUI(); 
+    
+    const displayEl = document.getElementById("display-name");
+    if (displayEl) displayEl.innerText = savedNick;
+    
+    const editNickInput = document.getElementById("edit-nickname");
+    if (editNickInput) editNickInput.value = savedNick;
+
+    window.renderCharts();
+    window.updateUI();
+    window.updateQueueUI();
 };
 
-// [4. 내 정보 관리 및 로그아웃]
-function updateNickname() {
-    const nickInput = document.getElementById("edit-nickname");
-    const newNick = nickInput ? nickInput.value.trim() : "";
-    if (!newNick) return alert("변경할 닉네임을 입력해주세요!");
-    localStorage.setItem("nickname", newNick);
-    document.getElementById("display-name").innerText = newNick;
-    alert("닉네임이 변경되었습니다!");
-}
+// [3. 탭 전환]
+window.changeTab = function(el, tabName) {
+    document.querySelectorAll('.nav-menu li').forEach(li => li.classList.remove('active'));
+    if (el) el.classList.add('active');
+    document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
+    const sectionId = tabName === 'home' ? 'section-home' : tabName === 'favs' ? 'section-favs' : tabName === 'billing' ? 'section-billing' : tabName === 'profile' ? 'section-profile' : '';
+    const targetSection = document.getElementById(sectionId);
+    if (targetSection) targetSection.classList.add('active');
+    if (tabName === 'home') window.renderCharts();
+    if (tabName === 'favs') window.renderFavorites();
+};
 
-function doLogout() {
-    if (confirm("안전하게 로그아웃 하시겠습니까?")) {
-        localStorage.removeItem("nickname");
-        window.location.href = "auth.html";
-    }
-}
+// [4. 재생 시스템 및 파일 경로 로직]
+window.playNow = function(name) {
+    if (window.userPlan === "free" && window.remainSongs <= 0) return alert("😭 무료 곡을 모두 소진하셨습니다.");
+    window.reservationQueue.unshift(name); // 가장 앞에 추가
+    window.startNextSong();
+};
 
-// [5. 멤버십 결제]
-function upgradePlan() {
-    if (confirm("💎 프리미엄(무제한) 멤버십을 결제하시겠습니까?")) {
-        localStorage.setItem("userPlan", "premium");
-        userPlan = "premium";
-        remainSongs = "∞";
-        updateUI();
-        alert("결제가 완료되었습니다! 이제 무제한으로 즐기세요.");
-    }
-}
-
-// [6. 노래 재생 로직]
-function playNow(name) {
-    if (userPlan === "free" && remainSongs <= 0) return alert("😭 무료 곡 소진!");
-    reservationQueue.unshift(name);
-    startNextSong();
-}
-
-function startNextSong() {
-    if (reservationQueue.length === 0) return;
+window.startNextSong = function() {
+    if (window.reservationQueue.length === 0) return alert("예약된 곡이 없습니다.");
     
-    if (userPlan === "free" && remainSongs > 0) {
-        remainSongs--;
-        localStorage.setItem("remainSongs", remainSongs);
-        updateUI();
+    const songTitle = window.reservationQueue.shift();
+    window.updateQueueUI();
+    
+    if (window.userPlan === "free" && window.remainSongs > 0) {
+        window.remainSongs--;
+        localStorage.setItem("remainSongs", window.remainSongs);
+        window.updateUI();
     }
 
-    const songTitle = reservationQueue.shift();
-    const songData = charts.find(c => c.title === songTitle) || { artist: "Unknown Artist" };
-    updateQueueUI();
-    
     currentKey = 0;
-    const karaokeView = document.getElementById("karaoke-view");
-    karaokeView.style.display = "flex";
-    
+    const keyValEl = document.getElementById("key-val");
+    if (keyValEl) keyValEl.innerText = "0";
+
+    document.getElementById("karaoke-view").style.display = "flex";
     const ytContainer = document.getElementById("yt-player");
-    ytContainer.style.background = "#000";
+    const formattedRemain = (window.remainSongs === "∞") ? "∞곡" : window.remainSongs.toString().padStart(2, '0') + "곡";
 
-    // 곡수 포맷팅 (예: 01곡)
-    const formattedRemain = (remainSongs === "∞") ? "∞곡" : remainSongs.toString().padStart(2, '0') + "곡";
-
-    // ⭐ 중요: 이 영역에서 SCORE 글자를 삭제하고 남은 곡수만 노란색으로 크게 배치함
     ytContainer.innerHTML = `
-        <div class="karaoke-screen-wrapper" style="position:relative; width:100%; height:100%; overflow:hidden;">
-            <div style="position:absolute; top:0; left:0; width:100%; height:60px; background:rgba(20,20,40,0.9); display:flex; align-items:center; padding:0 30px; z-index:100; border-bottom:1px solid #444;">
+        <div class="karaoke-screen-wrapper" style="position:relative; width:100%; height:100%; background:#000;">
+            <div style="position:absolute; top:0; left:0; width:100%; height:60px; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:space-between; padding:0 30px; z-index:1000;">
                 <div style="color:white; display:flex; align-items:center;">
-                    <span style="color:#00f2fe; font-weight:bold; margin-right:15px; font-size:18px;">현재곡</span>
-                    <span style="font-size:20px; font-weight:bold;">${songTitle} - ${songData.artist}</span>
+                    <span style="color:#00f2fe; font-weight:bold; margin-right:15px; font-size:18px;">PLAYING</span>
+                    <span style="font-size:20px; font-weight:bold;">${songTitle}</span>
                 </div>
+                <div style="color:#ffe600; font-size:42px; font-weight:900;">${formattedRemain}</div>
             </div>
-
-            <div style="position:absolute; top:12px; right:30px; z-index:110;">
-                <div style="color:#ffe600; font-size:42px; font-weight:900; text-shadow: 2px 2px 4px #000; font-family: 'Arial Black', sans-serif;">
-                    ${formattedRemain}
-                </div>
-            </div>
-
-            <video id="main-video" autoplay style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0; z-index:10; background:black;"></video>
-
-            <div id="sheet-music-area" style="position:absolute; top:80px; left:5%; width:90%; height:40%; background:rgba(255,255,255,0.05); border-radius:10px; z-index:20; display:flex; align-items:center; justify-content:center; border:1px dashed rgba(255,255,255,0.2);">
-                <span style="color:rgba(255,255,255,0.3); font-size:14px;">[멜로디 악보 영역]</span>
-            </div>
-
-            <div id="lyrics-layer" style="position:absolute; bottom:10%; left:0; width:100%; z-index:100; text-align:center;">
-                <div id="current-lyric-text" style="display:inline-block; font-size:65px; font-weight:900; color:#00f2fe; text-shadow: 4px 4px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000, 0px 0px 30px rgba(0,242,254,0.8); line-height:1.2;">
-                    🎤 노래 준비 중...
-                </div>
-            </div>
-
-            <div style="position:absolute; bottom:0; left:0; width:100%; height:8px; background:rgba(255,255,255,0.1); z-index:100;">
-                <div id="song-progress-bar" style="width:0%; height:100%; background:linear-gradient(to right, #00f2fe, #7d2ae8);"></div>
+            <video id="main-video" autoplay style="width:100%; height:100%; object-fit:contain; background:#000;"></video>
+            <div id="lyrics-layer" style="position:absolute; bottom:12%; left:0; width:100%; z-index:100; text-align:center;">
+                <div id="current-lyric-text" style="font-size:32px; font-weight:bold; color:white; text-shadow: 2px 2px 5px #000;">🎤 노래 시작!</div>
             </div>
         </div>
     `;
 
-    if (currentAudio) {
-        currentAudio.pause();
-        currentAudio.src = "";
-    }
-
     currentAudio = document.getElementById("main-video");
-    const encodedTitle = encodeURI(songTitle);
-    currentAudio.src = `mp4/${encodedTitle}  TJ Karaoke.mp4`;
     
-    currentAudio.onerror = function() {
-        if (!currentAudio.src.includes(".mp3")) {
-            currentAudio.src = `mp3/${encodedTitle}  TJ Karaoke.mp3`;
+    // 파일명 유연하게 매칭 (띄어쓰기 2칸인 경우 등 대비)
+    const base = songTitle.trim();
+    const cleanBase = base.replace(/\s+/g, ' '); // 연속된 공백을 하나로
+
+    const paths = [
+        `mp4/${base} TJ Karaoke 720p.mp4`,
+        `mp4/${cleanBase} TJ Karaoke 720p.mp4`,
+        `mp4/${base} TJ Karaoke.mp4`,
+        `mp4/${base}.mp4`
+    ];
+
+    let attempt = 0;
+    const tryNext = () => {
+        if (attempt < paths.length) {
+            console.log("파일 시도 중:", paths[attempt]);
+            currentAudio.src = paths[attempt];
+            attempt++;
+        } else {
+            document.getElementById("current-lyric-text").innerHTML = `<span style="color:red">❌ 파일을 찾을 수 없습니다.</span><br><small style="font-size:14px; color:#ccc;">파일명 확인: ${base}</small>`;
         }
     };
 
-    currentAudio.play().catch(e => console.log("재생 오류 방지"));
+    currentAudio.onerror = tryNext;
+    tryNext();
 
-    const lyricDisplay = document.getElementById("current-lyric-text");
-    const data = songContent[songTitle];
+    currentAudio.onended = () => window.exitKaraoke();
+    window.startVisualizer();
+    window.setupScore();
+};
 
-    currentAudio.ontimeupdate = () => {
-        const now = currentAudio.currentTime;
-        if (data && data.lyrics) {
-            const currentLyric = data.lyrics.reduce((prev, curr) => (curr.time <= now ? curr : prev));
-            if(lyricDisplay && lyricDisplay.innerText !== currentLyric.text) {
-                lyricDisplay.innerText = currentLyric.text;
-            }
-        }
-        const progressBar = document.getElementById("song-progress-bar");
-        if (progressBar) progressBar.style.width = (now / currentAudio.duration) * 100 + "%";
-    };
+// [5. 추천 기능 수정]
+window.luckyDraw = function() {
+    const randomIndex = Math.floor(Math.random() * charts.length);
+    const selected = charts[randomIndex];
+    
+    // 팝업 후 바로 노래 화면으로 넘어가도록 playNow 호출
+    if(confirm(`🎲 추천곡: [ ${selected.title} ]\n지금 바로 부를까요?`)) { 
+        window.playNow(selected.title); 
+    } else {
+        window.addToQueue(selected.title);
+        alert("예약 목록에 추가되었습니다. ✅");
+    }
+};
 
-    currentAudio.onended = () => exitKaraoke();
-    startVisualizer();
-    setupScore();
-}
+// [6. UI 및 기능 나머지]
+window.renderCharts = function() {
+    const list = document.getElementById("chart-list");
+    if(!list) return;
+    list.innerHTML = charts.map((song, index) => {
+        const isFav = window.favorites.includes(song.title);
+        return `<div class="chart-card">
+            <div class="rank-num">${index + 1}</div>
+            <div class="song-info">
+                <div class="song-title">${song.title}</div>
+                <div class="song-artist">${song.artist}</div>
+            </div>
+            <div class="card-btns">
+                <span onclick="window.toggleFavorite('${song.title}')" style="cursor:pointer; font-size:20px; margin-right:10px;">${isFav ? '❤️' : '🤍'}</span>
+                <button class="btn-direct" onclick="window.playNow('${song.title}')">부르기</button>
+                <button class="btn-reserve" onclick="window.addToQueue('${song.title}')">예약</button>
+            </div>
+        </div>`;
+    }).join('');
+};
 
-// [7. 음정 및 추천 기능]
-function changeKey(val) {
+window.renderFavorites = function() {
+    const list = document.getElementById("fav-list");
+    if(!list) return;
+    const favSongs = charts.filter(song => window.favorites.includes(song.title));
+    if (favSongs.length === 0) {
+        list.innerHTML = "<div style='color:#ccc; padding:50px; text-align:center;'>❤️ 애창곡이 비어있습니다.</div>";
+        return;
+    }
+    list.innerHTML = favSongs.map(song => `
+        <div class="chart-card">
+            <div class="rank-num">⭐</div>
+            <div class="song-info">
+                <div class="song-title">${song.title}</div>
+                <div class="song-artist">${song.artist}</div>
+            </div>
+            <div class="card-btns">
+                <span onclick="window.toggleFavorite('${song.title}')" style="cursor:pointer; font-size:20px; margin-right:10px;">❤️</span>
+                <button class="btn-direct" onclick="window.playNow('${song.title}')">부르기</button>
+                <button class="btn-reserve" onclick="window.addToQueue('${song.title}')">예약</button>
+            </div>
+        </div>`).join('');
+};
+
+window.upgradePlan = function() {
+    if (window.userPlan === "premium") return alert("이미 프리미엄 멤버입니다! 💎");
+    if (confirm("VIP 프리미엄으로 결제하시겠습니까?")) {
+        window.userPlan = "premium";
+        window.remainSongs = "∞";
+        localStorage.setItem("userPlan", "premium");
+        localStorage.setItem("remainSongs", "∞");
+        window.updateUI();
+        window.renderCharts();
+        alert("프리미엄 결제 완료! 🎉");
+    }
+};
+
+window.updateNickname = function() {
+    const newNick = document.getElementById("edit-nickname").value.trim();
+    if (!newNick) return alert("닉네임을 입력하세요.");
+    localStorage.setItem("nickname", newNick);
+    document.getElementById("display-name").innerText = newNick;
+    alert("변경되었습니다! ✨");
+};
+
+window.doLogout = function() {
+    if (confirm("로그아웃 하시겠습니까?")) {
+        localStorage.removeItem("nickname");
+        window.location.href = "auth.html";
+    }
+};
+
+window.updateUI = function() {
+    const songEl = document.getElementById("remain-songs-val");
+    if (songEl) songEl.innerText = window.remainSongs;
+    const statusEl = document.getElementById("user-status");
+    if (statusEl) statusEl.innerText = (window.userPlan === "premium" ? "💎 PREMIUM MEMBER" : "FREE MEMBER");
+};
+
+window.updateQueueUI = function() {
+    const list = document.getElementById("reserve-list");
+    if (list) list.innerHTML = window.reservationQueue.length === 0 ? "" : window.reservationQueue.map((s, i) => `<div class="reserve-item">${i+1}. ${s}</div>`).join('');
+};
+
+window.addToQueue = function(name) {
+    window.reservationQueue.push(name);
+    window.updateQueueUI();
+};
+
+window.toggleFavorite = function(songName) {
+    const index = window.favorites.indexOf(songName);
+    if (index > -1) window.favorites.splice(index, 1); 
+    else window.favorites.push(songName);
+    localStorage.setItem("favorites", JSON.stringify(window.favorites));
+    const favSection = document.getElementById("section-favs");
+    if(favSection && favSection.classList.contains("active")) window.renderFavorites();
+    else window.renderCharts();
+};
+
+window.changeKey = function(val) {
     currentKey += val;
     const keyValEl = document.getElementById("key-val");
     if (keyValEl) keyValEl.innerText = (currentKey > 0 ? "+" : "") + currentKey;
-    if (currentAudio) currentAudio.playbackRate = 1 + (currentKey * 0.03); 
-}
+};
 
-function luckyDraw() {
-    const randomIndex = Math.floor(Math.random() * charts.length);
-    const selected = charts[randomIndex];
-    if(confirm(`🎲 추천곡: [ ${selected.title} ]\n지금 바로 예약할까요?`)) {
-        addToQueue(selected.title);
-    }
-}
-
-// [9. 클럽 조명 및 종료 기능]
-function toggleClubMode() {
+window.toggleClubMode = function() {
     const view = document.getElementById("karaoke-view");
     isClubOn = !isClubOn;
     if (isClubOn) {
@@ -229,90 +268,19 @@ function toggleClubMode() {
         clearInterval(clubInterval);
         view.style.boxShadow = "none";
     }
-}
+};
 
-function exitKaraoke() {
-    if(currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; }
-    if(isClubOn) toggleClubMode(); 
-    document.getElementById("karaoke-view").style.display = "none";
-    cancelAnimationFrame(animationId);
-    // 점수 결과창은 보여주되, 상단 SCORE 화면과는 별개입니다.
-    showResult(currentScoreValue);
-}
-
-// [10. 데이터 렌더링 함수들]
-function renderCharts() {
-    const chartList = document.getElementById("chart-list");
-    if(!chartList) return;
-    chartList.innerHTML = charts.map((song, index) => {
-        const isFav = favorites.includes(song.title);
-        return `<div class="chart-card"><div class="rank-num">${index + 1}</div><div class="song-info"><div class="song-title">${song.title}</div><div class="song-artist">${song.artist}</div></div><div class="card-btns"><span onclick="toggleFavorite('${song.title}')" style="cursor:pointer; font-size:20px; margin-right:10px;">${isFav ? '❤️' : '🤍'}</span><button class="btn-direct" onclick="playNow('${song.title}')">부르기</button><button class="btn-reserve" onclick="addToQueue('${song.title}')">예약</button></div></div>`;
-    }).join('');
-}
-
-function renderFavorites() {
-    const favList = document.getElementById("fav-list");
-    if (!favList) return;
-    if (favorites.length === 0) {
-        favList.innerHTML = `<div style="text-align:center; padding:50px; color:#666;">❤️ 등록된 애창곡이 없습니다.</div>`;
-        return;
-    }
-    favList.innerHTML = favorites.map((songTitle) => {
-        const songData = charts.find(c => c.title === songTitle) || { artist: "가수 정보 없음" };
-        return `<div class="chart-card"><div class="song-info"><div class="song-title">${songTitle}</div><div class="song-artist">${songData.artist}</div></div><div class="card-btns"><span onclick="toggleFavorite('${songTitle}')" style="cursor:pointer; font-size:20px; margin-right:10px;">❤️</span><button class="btn-direct" onclick="playNow('${songTitle}')">부르기</button><button class="btn-reserve" onclick="addToQueue('${songTitle}')">예약</button></div></div>`;
-    }).join('');
-}
-
-function updateUI() {
-    const songEl = document.getElementById("remain-songs-val");
-    if (songEl) songEl.innerText = remainSongs;
-    const statusEl = document.getElementById("user-status");
-    if (statusEl) statusEl.innerText = (userPlan === "premium" ? "💎 PREMIUM" : "FREE USER");
-}
-
-function updateQueueUI() {
-    const list = document.getElementById("reserve-list");
-    if (list) list.innerHTML = reservationQueue.length === 0 ? "예약된 노래가 없습니다." : reservationQueue.map((s, i) => `<div class="reserve-item">${i+1}. ${s}</div>`).join('');
-}
-
-function addToQueue(name) {
-    reservationQueue.push(name);
-    updateQueueUI();
-}
-
-function toggleFavorite(songName) {
-    const index = favorites.indexOf(songName);
-    if (index > -1) favorites.splice(index, 1); 
-    else favorites.push(songName);
-    localStorage.setItem("favorites", JSON.stringify(favorites));
-    renderCharts();
-    renderFavorites();
-}
-
-function changeTab(el, tabId) {
-    document.querySelectorAll('.nav-menu li').forEach(li => li.classList.remove('active'));
-    el.classList.add('active');
-    document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
-    document.getElementById('section-' + tabId).classList.add('active');
-    if (tabId === 'favs') renderFavorites();
-}
-
-// [11. 점수 및 비주얼라이저]
-function setupScore() {
-    currentScoreValue = 0;
-    if(scoreInterval) clearInterval(scoreInterval);
-    scoreInterval = setInterval(() => { if (currentVolume > 40) currentScoreValue += 1; }, 1000);
-}
-
-async function startVisualizer() {
+window.startVisualizer = async function() {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        analyser = audioCtx.createAnalyser();
-        const source = audioCtx.createMediaStreamSource(stream);
-        source.connect(analyser);
-        analyser.fftSize = 256;
-        dataArray = new Uint8Array(analyser.frequencyBinCount);
+        if (!audioCtx) {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            const source = audioCtx.createMediaStreamSource(stream);
+            source.connect(analyser);
+            analyser.fftSize = 256;
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+        }
         canvas = document.getElementById("visualizer");
         if(canvas) {
             canvasCtx = canvas.getContext("2d");
@@ -330,14 +298,28 @@ async function startVisualizer() {
             draw();
         }
     } catch (e) { console.log("마이크 연결 실패"); }
-}
+};
 
-function showResult(score) {
+window.setupScore = function() {
+    currentScoreValue = 0;
+    if(scoreInterval) clearInterval(scoreInterval);
+    scoreInterval = setInterval(() => { if (currentVolume > 40) currentScoreValue += 1; }, 1000);
+};
+
+window.exitKaraoke = function() {
+    if(currentAudio) { currentAudio.pause(); currentAudio.src = ""; }
+    if(isClubOn) window.toggleClubMode(); 
+    document.getElementById("karaoke-view").style.display = "none";
+    cancelAnimationFrame(animationId);
+    window.showResult(currentScoreValue);
+};
+
+window.showResult = function(score) {
     const finalScoreEl = document.getElementById("final-score");
     const scoreModal = document.getElementById("score-modal");
-    let displayScore = score < 50 ? score + 50 : (score > 100 ? 100 : score);
+    let displayScore = score < 50 ? score + 60 : (score > 100 ? 100 : score);
     if(finalScoreEl) finalScoreEl.innerText = displayScore;
     if(scoreModal) scoreModal.style.display = "flex";
-}
+};
 
-function closeScore() { document.getElementById("score-modal").style.display = "none"; }
+window.closeScore = function() { document.getElementById("score-modal").style.display = "none"; };
