@@ -83,19 +83,58 @@ function changeKey(val) {
     }
 }
 
-// 🌈 클럽 조명 모드 기능
 function toggleClubMode() {
-    if (clubModeInterval) {
-        clearInterval(clubModeInterval);
-        clubModeInterval = null;
-        document.body.style.background = "#0b0915";
-    } else {
-        clubModeInterval = setInterval(() => {
-            const colors = ["#ff007b33", "#7d2ae833", "#00ffcc33", "#ffcc0033", "#0b0915"];
-            document.body.style.background = colors[Math.floor(Math.random() * colors.length)];
-        }, 300);
-        alert("🌈 클럽 모드 가동! 즐겁게 노래하세요!");
+    // 1. 이름으로 찾지 말고, 그냥 'tj-display' 클래스를 가진 요소를 전체 화면에서 뒤집니다.
+    let displayArea = document.querySelector(".tj-display") || 
+                      document.getElementById("main-screen") ||
+                      document.querySelector("main"); // 이것도 안되면 그냥 메인 영역이라도..
+
+    // 2. 만약 조명이 켜져 있다면 (토글)
+    if (window.isClubOn) {
+        clearInterval(window.clubInterval);
+        window.clubInterval = null;
+        window.isClubOn = false;
+        
+        const oldOverlay = document.getElementById("force-club-overlay");
+        if (oldOverlay) oldOverlay.remove();
+        
+        if (displayArea) {
+            displayArea.style.borderColor = "";
+            displayArea.style.boxShadow = "";
+        }
+        return;
     }
+
+    // 3. 영역을 못 찾았을 때를 대비한 최종 방어 (body라도 번쩍이게)
+    if (!displayArea) displayArea = document.body;
+
+    // 4. 조명 레이어 만들기
+    const overlay = document.createElement("div");
+    overlay.id = "force-club-overlay";
+    overlay.style.cssText = `
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        pointer-events: none; z-index: 99999; opacity: 0.4; border-radius: inherit;
+    `;
+    
+    // 부모 위치 고정 확인
+    if (getComputedStyle(displayArea).position === 'static') {
+        displayArea.style.position = 'relative';
+    }
+    displayArea.appendChild(overlay);
+
+    // 5. 무한 번쩍임 가동
+    window.isClubOn = true;
+    window.clubInterval = setInterval(() => {
+        const colors = ["#ff007b", "#7d2ae8", "#00f2fe", "#ffe600", "#2ae87d"];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        overlay.style.backgroundColor = color;
+        if(displayArea !== document.body) {
+            displayArea.style.borderColor = color;
+            displayArea.style.boxShadow = `0 0 40px ${color}`;
+        }
+    }, 120);
+    
+    console.log("🔥 CLUB MODE FORCE START!");
 }
 
 // [5. 노래방 실행 로직]
