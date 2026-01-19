@@ -7,7 +7,7 @@ let currentScoreValue = 0;
 let currentKey = 0; 
 let autoExitTimer; // 노래 종료 타이머
 
-// [차트 데이터]
+// [1. 차트 데이터]
 const charts = [
     { title: "에피소드", artist: "이무진" }, { title: "Love Wins All", artist: "아이유" },
     { title: "밤양갱", artist: "비비" }, { title: "Hype Boy", artist: "NewJeans" },
@@ -51,7 +51,7 @@ function updateUI() {
     const userCard = document.getElementById("user-card-ui");
 
     if (statusEl) {
-        statusEl.innerText = isPremium ? "VIP PREMIUM MEMBER" : "FREE MEMBER";
+        statusEl.innerText = isPremium ? "💎 VIP PREMIUM MEMBER" : "FREE MEMBER";
         statusEl.style.color = isPremium ? "#FFD700" : "rgba(255, 255, 255, 0.8)";
     }
     if (songEl) {
@@ -59,13 +59,14 @@ function updateUI() {
         songEl.innerText = remainSongs;
     }
     if (userCard) {
-        userCard.style.background = isPremium ? "linear-gradient(135deg, #7d2ae8, #ff007b, #FFD700)" : "linear-gradient(135deg, #7d2ae8, #ff007b)";
+        userCard.style.background = isPremium 
+            ? "linear-gradient(135deg, #7d2ae8, #ff007b, #FFD700)" 
+            : "linear-gradient(135deg, #7d2ae8, #ff007b)";
     }
 }
 
-// [4. 기능 버튼 복구 (랜덤추천, 키조절, 클럽모드)]
+// [4. 기능 버튼 (랜덤추천, 키조절, 클럽모드)]
 
-// 🎲 랜덤 추천 기능
 function luckyDraw() {
     const randomIndex = Math.floor(Math.random() * charts.length);
     const selected = charts[randomIndex];
@@ -74,7 +75,6 @@ function luckyDraw() {
     }
 }
 
-// 🎹 음정 키 조절 기능
 function changeKey(val) {
     currentKey += val;
     const keyValEl = document.getElementById("key-val");
@@ -84,20 +84,16 @@ function changeKey(val) {
 }
 
 function toggleClubMode() {
-    // 1. 이름으로 찾지 말고, 그냥 'tj-display' 클래스를 가진 요소를 전체 화면에서 뒤집니다.
     let displayArea = document.querySelector(".tj-display") || 
                       document.getElementById("main-screen") ||
-                      document.querySelector("main"); // 이것도 안되면 그냥 메인 영역이라도..
+                      document.querySelector("#karaoke-view"); 
 
-    // 2. 만약 조명이 켜져 있다면 (토글)
     if (window.isClubOn) {
         clearInterval(window.clubInterval);
         window.clubInterval = null;
         window.isClubOn = false;
-        
         const oldOverlay = document.getElementById("force-club-overlay");
         if (oldOverlay) oldOverlay.remove();
-        
         if (displayArea) {
             displayArea.style.borderColor = "";
             displayArea.style.boxShadow = "";
@@ -105,10 +101,8 @@ function toggleClubMode() {
         return;
     }
 
-    // 3. 영역을 못 찾았을 때를 대비한 최종 방어 (body라도 번쩍이게)
     if (!displayArea) displayArea = document.body;
 
-    // 4. 조명 레이어 만들기
     const overlay = document.createElement("div");
     overlay.id = "force-club-overlay";
     overlay.style.cssText = `
@@ -116,13 +110,11 @@ function toggleClubMode() {
         pointer-events: none; z-index: 99999; opacity: 0.4; border-radius: inherit;
     `;
     
-    // 부모 위치 고정 확인
     if (getComputedStyle(displayArea).position === 'static') {
         displayArea.style.position = 'relative';
     }
     displayArea.appendChild(overlay);
 
-    // 5. 무한 번쩍임 가동
     window.isClubOn = true;
     window.clubInterval = setInterval(() => {
         const colors = ["#ff007b", "#7d2ae8", "#00f2fe", "#ffe600", "#2ae87d"];
@@ -133,8 +125,6 @@ function toggleClubMode() {
             displayArea.style.boxShadow = `0 0 40px ${color}`;
         }
     }, 120);
-    
-    console.log("🔥 CLUB MODE FORCE START!");
 }
 
 // [5. 노래방 실행 로직]
@@ -176,7 +166,6 @@ function startNextSong() {
         </div>
     `;
 
-    // 🕒 3분 40초 후 자동 종료 설정
     if(autoExitTimer) clearTimeout(autoExitTimer);
     autoExitTimer = setTimeout(() => {
         if(document.getElementById("karaoke-view").style.display === "flex") {
@@ -240,7 +229,7 @@ async function startVisualizer() {
 function exitKaraoke() {
     if(autoExitTimer) clearTimeout(autoExitTimer);
     clearInterval(scoreInterval);
-    if(clubModeInterval) { clearInterval(clubModeInterval); clubModeInterval = null; }
+    if(window.isClubOn) toggleClubMode(); // 노래 종료 시 클럽모드도 끄기
     document.body.style.background = "#0b0915";
     cancelAnimationFrame(animationId);
     if(audioCtx) audioCtx.close();
@@ -259,12 +248,12 @@ function showResult(score) {
 function closeScore() {
     document.getElementById("score-modal").style.display = "none";
     document.getElementById("karaoke-view").style.display = "none";
-    currentKey = 0; // 키 초기화
+    currentKey = 0;
     const keyValEl = document.getElementById("key-val");
     if(keyValEl) keyValEl.innerText = "0";
 }
 
-// [8. 기타 유틸리티]
+// [8. 유틸리티 및 탭 전환]
 function manualSearch() {
     const input = document.getElementById("main-search-input");
     const val = input?.value.trim();
@@ -330,4 +319,45 @@ function changeTab(el, tabId) {
     document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
     document.getElementById('section-' + tabId).classList.add('active');
     if(tabId === 'favs') renderFavorites();
+}
+
+// [9. 내 정보 관리 및 결제 (HTML ID 매칭 완료)]
+
+// 닉네임 변경 저장 (updateNickname)
+function updateNickname() {
+    const nickInput = document.getElementById("edit-nickname");
+    const newNick = nickInput?.value.trim();
+
+    if (!newNick) {
+        alert("⚠️ 변경할 닉네임을 입력해주세요!");
+        return;
+    }
+
+    localStorage.setItem("nickname", newNick);
+    const nameEl = document.getElementById("display-name");
+    if (nameEl) nameEl.innerText = newNick;
+
+    alert(`✅ 닉네임이 '${newNick}'님으로 변경되었습니다!`);
+    nickInput.value = ""; 
+}
+
+// 프리미엄 결제 기능 (upgradePlan)
+function upgradePlan() {
+    if (confirm("💎 VIP 프리미엄 멤버십으로 업그레이드 하시겠습니까?")) {
+        localStorage.setItem("userPlan", "premium");
+        updateUI(); 
+        alert("🎊 축하합니다! 이제 모든 곡을 무제한으로 즐기실 수 있습니다!");
+        
+        // 결제 후 홈 화면으로 이동
+        const homeTab = document.querySelector('.nav-menu li:first-child');
+        changeTab(homeTab, 'home');
+    }
+}
+
+// 로그아웃 (doLogout)
+function doLogout() {
+    if (confirm("정말 로그아웃 하시겠습니까?")) {
+        localStorage.removeItem("nickname");
+        window.location.href = "auth.html";
+    }
 }
