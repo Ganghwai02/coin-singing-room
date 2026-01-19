@@ -20,7 +20,7 @@ const charts = [
     { title: "[TJ노래방] 밤양갱 - 비비(BIBI)", artist: "비비" },
     { title: "[TJ노래방] Hype boy - NewJeans", artist: "NewJeans" },
     { title: "[TJ노래방] Seven(Clean Ver.) - 정국(Feat.Latto)", artist: "정국" },
-    { title: "[TJ노래방  MR Live] 첫만남은계획대로되지않아 - TWS(투어스)", artist: "TWS" },
+    { title: "[TJ노래방   MR Live] 첫만남은계획대로되지않아 - TWS(투어스)", artist: "TWS" },
     { title: "[TJ노래방] Super Lady - (여자)아이들", artist: "(여자)아이들" },
     { title: "[TJ노래방] To. X - 태연(TAEYEON)", artist: "태연" },
     { title: "[TJ노래방] Love 119 - RIIZE", artist: "RIIZE" },
@@ -44,7 +44,7 @@ const songContent = {
     "[TJ노래방] 밤양갱 - 비비(BIBI)": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 14, text: "떠나는 길에 니가 내게 말했지" }, { time: 18, text: "너는 바라는 게 너무나 많아" }] },
     "[TJ노래방] Hype boy - NewJeans": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 8, text: "Baby, got me looking so crazy" }] },
     "[TJ노래방] Seven(Clean Ver.) - 정국(Feat.Latto)": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 15, text: "Monday Tuesday Wednesday Thursday" }] },
-    "[TJ노래방  MR Live] 첫만남은계획대로되지않아 - TWS(투어스)": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 10, text: "거울 속의 내 모습은 너무 어색해" }] },
+    "[TJ노래방   MR Live] 첫만남은계획대로되지않아 - TWS(투어스)": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 10, text: "거울 속의 내 모습은 너무 어색해" }] },
     "[TJ노래방] Super Lady - (여자)아이들": { lyrics: [{ time: 0, text: "🎵 Super Lady - (여자)아이들" }, { time: 6, text: "Follow me, follow me, follow me" }] },
     "[TJ노래방] To. X - 태연(TAEYEON)": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 8, text: "처음 본 너의 그 눈빛이" }] },
     "[TJ노래방] Love 119 - RIIZE": { lyrics: [{ time: 0, text: "🎵 간주 중" }, { time: 10, text: "어디선가 본 것 같은 눈빛" }] },
@@ -99,7 +99,7 @@ function upgradePlan() {
     }
 }
 
-// [6. 노래 재생 및 종료 로직]
+// [6. 노래 재생 로직]
 function playNow(name) {
     if (userPlan === "free" && remainSongs <= 0) return alert("😭 무료 곡 소진!");
     reservationQueue.unshift(name);
@@ -116,40 +116,80 @@ function startNextSong() {
     }
 
     const songTitle = reservationQueue.shift();
+    const songData = charts.find(c => c.title === songTitle) || { artist: "Unknown Artist" };
     updateQueueUI();
     
     currentKey = 0;
-    const keyValEl = document.getElementById("key-val");
-    if (keyValEl) keyValEl.innerText = "0";
-
-    document.getElementById("karaoke-view").style.display = "flex";
+    const karaokeView = document.getElementById("karaoke-view");
+    karaokeView.style.display = "flex";
     
     const ytContainer = document.getElementById("yt-player");
+    ytContainer.style.background = "#000";
+
+    // 곡수 포맷팅 (예: 01곡)
+    const formattedRemain = (remainSongs === "∞") ? "∞곡" : remainSongs.toString().padStart(2, '0') + "곡";
+
+    // ⭐ 중요: 이 영역에서 SCORE 글자를 삭제하고 남은 곡수만 노란색으로 크게 배치함
     ytContainer.innerHTML = `
-        <div id="lyrics-box" style="font-size: 36px; font-weight: bold; color: white; text-align: center; text-shadow: 0 0 15px #ff007b; height: 100%; display: flex; align-items: center; justify-content: center; padding: 20px;">
-            🎤 노래 준비 중...
-        </div>
-        <div style="position:absolute; bottom:30px; width:80%; height:8px; background:rgba(255,255,255,0.1); border-radius:10px; left:10%;">
-            <div id="song-progress-bar" style="width:0%; height:100%; background:linear-gradient(to right, #ff007b, #7d2ae8); border-radius:10px;"></div>
+        <div class="karaoke-screen-wrapper" style="position:relative; width:100%; height:100%; overflow:hidden;">
+            <div style="position:absolute; top:0; left:0; width:100%; height:60px; background:rgba(20,20,40,0.9); display:flex; align-items:center; padding:0 30px; z-index:100; border-bottom:1px solid #444;">
+                <div style="color:white; display:flex; align-items:center;">
+                    <span style="color:#00f2fe; font-weight:bold; margin-right:15px; font-size:18px;">현재곡</span>
+                    <span style="font-size:20px; font-weight:bold;">${songTitle} - ${songData.artist}</span>
+                </div>
+            </div>
+
+            <div style="position:absolute; top:12px; right:30px; z-index:110;">
+                <div style="color:#ffe600; font-size:42px; font-weight:900; text-shadow: 2px 2px 4px #000; font-family: 'Arial Black', sans-serif;">
+                    ${formattedRemain}
+                </div>
+            </div>
+
+            <video id="main-video" autoplay style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0; z-index:10; background:black;"></video>
+
+            <div id="sheet-music-area" style="position:absolute; top:80px; left:5%; width:90%; height:40%; background:rgba(255,255,255,0.05); border-radius:10px; z-index:20; display:flex; align-items:center; justify-content:center; border:1px dashed rgba(255,255,255,0.2);">
+                <span style="color:rgba(255,255,255,0.3); font-size:14px;">[멜로디 악보 영역]</span>
+            </div>
+
+            <div id="lyrics-layer" style="position:absolute; bottom:10%; left:0; width:100%; z-index:100; text-align:center;">
+                <div id="current-lyric-text" style="display:inline-block; font-size:65px; font-weight:900; color:#00f2fe; text-shadow: 4px 4px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000, 0px 0px 30px rgba(0,242,254,0.8); line-height:1.2;">
+                    🎤 노래 준비 중...
+                </div>
+            </div>
+
+            <div style="position:absolute; bottom:0; left:0; width:100%; height:8px; background:rgba(255,255,255,0.1); z-index:100;">
+                <div id="song-progress-bar" style="width:0%; height:100%; background:linear-gradient(to right, #00f2fe, #7d2ae8);"></div>
+            </div>
         </div>
     `;
 
-    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-    const fileName = `${songTitle}  TJ Karaoke.mp3`;
-    currentAudio = new Audio(encodeURI(`mp3/${fileName}`));
-    
-    currentAudio.play().catch(e => {
-        document.getElementById("lyrics-box").innerText = "파일을 찾을 수 없습니다.";
-    });
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.src = "";
+    }
 
-    const lyricsBox = document.getElementById("lyrics-box");
+    currentAudio = document.getElementById("main-video");
+    const encodedTitle = encodeURI(songTitle);
+    currentAudio.src = `mp4/${encodedTitle}  TJ Karaoke.mp4`;
+    
+    currentAudio.onerror = function() {
+        if (!currentAudio.src.includes(".mp3")) {
+            currentAudio.src = `mp3/${encodedTitle}  TJ Karaoke.mp3`;
+        }
+    };
+
+    currentAudio.play().catch(e => console.log("재생 오류 방지"));
+
+    const lyricDisplay = document.getElementById("current-lyric-text");
     const data = songContent[songTitle];
 
     currentAudio.ontimeupdate = () => {
         const now = currentAudio.currentTime;
         if (data && data.lyrics) {
             const currentLyric = data.lyrics.reduce((prev, curr) => (curr.time <= now ? curr : prev));
-            lyricsBox.innerText = currentLyric.text;
+            if(lyricDisplay && lyricDisplay.innerText !== currentLyric.text) {
+                lyricDisplay.innerText = currentLyric.text;
+            }
         }
         const progressBar = document.getElementById("song-progress-bar");
         if (progressBar) progressBar.style.width = (now / currentAudio.duration) * 100 + "%";
@@ -160,19 +200,14 @@ function startNextSong() {
     setupScore();
 }
 
-// [7. 음정(Key) 변경 함수]
+// [7. 음정 및 추천 기능]
 function changeKey(val) {
     currentKey += val;
     const keyValEl = document.getElementById("key-val");
-    if (keyValEl) {
-        keyValEl.innerText = (currentKey > 0 ? "+" : "") + currentKey;
-    }
-    if (currentAudio) {
-        currentAudio.playbackRate = 1 + (currentKey * 0.05); 
-    }
+    if (keyValEl) keyValEl.innerText = (currentKey > 0 ? "+" : "") + currentKey;
+    if (currentAudio) currentAudio.playbackRate = 1 + (currentKey * 0.03); 
 }
 
-// [8. 랜덤 추천(Lucky Draw) 함수]
 function luckyDraw() {
     const randomIndex = Math.floor(Math.random() * charts.length);
     const selected = charts[randomIndex];
@@ -185,66 +220,46 @@ function luckyDraw() {
 function toggleClubMode() {
     const view = document.getElementById("karaoke-view");
     isClubOn = !isClubOn;
-    
     if (isClubOn) {
         clubInterval = setInterval(() => {
             const color = ["#ff007b", "#7d2ae8", "#00f2fe", "#ffe600"][Math.floor(Math.random()*4)];
-            view.style.boxShadow = `inset 0 0 100px ${color}, 0 0 50px ${color}`;
-            document.body.style.backgroundColor = color;
+            view.style.boxShadow = `inset 0 0 100px ${color}`;
         }, 150);
     } else {
         clearInterval(clubInterval);
         view.style.boxShadow = "none";
-        document.body.style.backgroundColor = "#0b0915";
     }
 }
 
 function exitKaraoke() {
-    if(currentAudio) {
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
-    }
+    if(currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; }
     if(isClubOn) toggleClubMode(); 
-    
     document.getElementById("karaoke-view").style.display = "none";
     cancelAnimationFrame(animationId);
+    // 점수 결과창은 보여주되, 상단 SCORE 화면과는 별개입니다.
     showResult(currentScoreValue);
 }
 
-// [10. 애창곡 렌더링 함수 (추가)]
-function renderFavorites() {
-    const favList = document.getElementById("fav-list");
-    if (!favList) return;
-
-    if (favorites.length === 0) {
-        favList.innerHTML = `<div style="text-align:center; padding:50px; color:#666;">❤️ 등록된 애창곡이 없습니다.<br>차트에서 하트를 눌러보세요!</div>`;
-        return;
-    }
-
-    favList.innerHTML = favorites.map((songTitle) => {
-        const songData = charts.find(c => c.title === songTitle) || { artist: "가수 정보 없음" };
-        return `
-            <div class="chart-card">
-                <div class="song-info">
-                    <div class="song-title">${songTitle}</div>
-                    <div class="song-artist">${songData.artist}</div>
-                </div>
-                <div class="card-btns">
-                    <span onclick="toggleFavorite('${songTitle}')" style="cursor:pointer; font-size:20px; margin-right:10px;">❤️</span>
-                    <button class="btn-direct" onclick="playNow('${songTitle}')">부르기</button>
-                    <button class="btn-reserve" onclick="addToQueue('${songTitle}')">예약</button>
-                </div>
-            </div>`;
-    }).join('');
-}
-
-// [기타 UI 함수]
+// [10. 데이터 렌더링 함수들]
 function renderCharts() {
     const chartList = document.getElementById("chart-list");
     if(!chartList) return;
     chartList.innerHTML = charts.map((song, index) => {
         const isFav = favorites.includes(song.title);
         return `<div class="chart-card"><div class="rank-num">${index + 1}</div><div class="song-info"><div class="song-title">${song.title}</div><div class="song-artist">${song.artist}</div></div><div class="card-btns"><span onclick="toggleFavorite('${song.title}')" style="cursor:pointer; font-size:20px; margin-right:10px;">${isFav ? '❤️' : '🤍'}</span><button class="btn-direct" onclick="playNow('${song.title}')">부르기</button><button class="btn-reserve" onclick="addToQueue('${song.title}')">예약</button></div></div>`;
+    }).join('');
+}
+
+function renderFavorites() {
+    const favList = document.getElementById("fav-list");
+    if (!favList) return;
+    if (favorites.length === 0) {
+        favList.innerHTML = `<div style="text-align:center; padding:50px; color:#666;">❤️ 등록된 애창곡이 없습니다.</div>`;
+        return;
+    }
+    favList.innerHTML = favorites.map((songTitle) => {
+        const songData = charts.find(c => c.title === songTitle) || { artist: "가수 정보 없음" };
+        return `<div class="chart-card"><div class="song-info"><div class="song-title">${songTitle}</div><div class="song-artist">${songData.artist}</div></div><div class="card-btns"><span onclick="toggleFavorite('${songTitle}')" style="cursor:pointer; font-size:20px; margin-right:10px;">❤️</span><button class="btn-direct" onclick="playNow('${songTitle}')">부르기</button><button class="btn-reserve" onclick="addToQueue('${songTitle}')">예약</button></div></div>`;
     }).join('');
 }
 
@@ -269,10 +284,9 @@ function toggleFavorite(songName) {
     const index = favorites.indexOf(songName);
     if (index > -1) favorites.splice(index, 1); 
     else favorites.push(songName);
-    
     localStorage.setItem("favorites", JSON.stringify(favorites));
     renderCharts();
-    renderFavorites(); // 애창곡 목록도 즉시 새로고침
+    renderFavorites();
 }
 
 function changeTab(el, tabId) {
@@ -280,13 +294,10 @@ function changeTab(el, tabId) {
     el.classList.add('active');
     document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
     document.getElementById('section-' + tabId).classList.add('active');
-
-    // 애창곡 탭을 누를 때 목록을 다시 그려줌
-    if (tabId === 'favs') {
-        renderFavorites();
-    }
+    if (tabId === 'favs') renderFavorites();
 }
 
+// [11. 점수 및 비주얼라이저]
 function setupScore() {
     currentScoreValue = 0;
     if(scoreInterval) clearInterval(scoreInterval);
@@ -329,7 +340,4 @@ function showResult(score) {
     if(scoreModal) scoreModal.style.display = "flex";
 }
 
-function closeScore() { 
-    document.getElementById("score-modal").style.display = "none"; 
-    currentKey = 0; 
-}
+function closeScore() { document.getElementById("score-modal").style.display = "none"; }
