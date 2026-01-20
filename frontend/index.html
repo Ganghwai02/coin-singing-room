@@ -145,7 +145,7 @@
             <div id="final-score" style="font-size:100px; font-weight:900; margin:20px 0; font-style:italic;">0</div>
             <p id="score-comment" style="opacity:0.8;">오늘 컨디션 최고인데요? 🎉</p>
             <div class="share-btns">
-                <button class="btn-kakao">카톡 자랑</button>
+                <button class="btn-kakao" onclick="window.shareToKatalk()">카톡 자랑</button>
                 <button class="btn-close" onclick="closeScore()">닫기</button>
             </div>
         </div>
@@ -153,5 +153,12 @@
 
     <script src="js/main.js"></script>
     <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.0/kakao.min.js"></script>
+    <script>
+      if (!Kakao.isInitialized()) {
+        // 이미 발급받으신 키를 그대로 사용합니다.
+        Kakao.init('cc6a6b5b5edd90eac6f308fbf5f1ea13');
+      }
+    </script>
 </body>
 </html>
