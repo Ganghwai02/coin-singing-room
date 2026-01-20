@@ -140,3 +140,24 @@ button:hover {
     .chart-grid { grid-template-columns: 1fr; gap: 10px; }
     .song-title { font-size: 14px; }
 }
+
+
+@media (max-width: 600px) {
+    .nav-menu {
+        padding: 10px;
+        font-size: 14px; /* 메뉴 글자 크기 조정 */
+    }
+    
+    .chart-card {
+        padding: 15px;
+        flex-direction: column; /* 카드가 너무 좁으면 위아래로 배치 */
+        align-items: flex-start;
+    }
+
+    .card-btns {
+        margin-top: 10px;
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+    }
+}

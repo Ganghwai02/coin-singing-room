@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SingStar ★ 코인 노래방 Premium</title>
     <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
     <script src="https://cdn.iamport.kr/v1/iamport.js"></script>
@@ -9,49 +10,74 @@
         :root { --ss-purple: #7d2ae8; --ss-pink: #ff007b; --glass: rgba(255, 255, 255, 0.07); --ss-gradient: linear-gradient(45deg, #8e2de2, #f000ff); }
         body { background: #0b0915; color: white; font-family: 'Pretendard', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
+        /* 배경 애니메이션 */
         .neon-bg { position: fixed; width: 600px; height: 600px; background: radial-gradient(circle, var(--ss-purple) 0%, transparent 70%); filter: blur(100px); opacity: 0.15; z-index: 0; pointer-events: none; animation: drift 20s infinite alternate; }
         @keyframes drift { from { top: -10%; left: -10%; } to { top: 70%; left: 80%; } }
         
-        /* 사이드바 및 카드 */
-        .sidebar { width: 300px; background: var(--glass); backdrop-filter: blur(30px); border-right: 1px solid rgba(255,255,255,0.1); padding: 30px; display: flex; flex-direction: column; z-index: 10; }
+        /* [사이드바 디자인 - PC 감성 그대로 유지] */
+        .sidebar { width: 300px; min-width: 300px; background: var(--glass); backdrop-filter: blur(30px); border-right: 1px solid rgba(255,255,255,0.1); padding: 30px; display: flex; flex-direction: column; z-index: 100; box-sizing: border-box; }
         .user-card { background: linear-gradient(135deg, var(--ss-purple), var(--ss-pink)); padding: 25px; border-radius: 25px; box-shadow: 0 15px 30px rgba(0,0,0,0.4); margin-bottom: 20px; transition: 0.5s; }
         .nav-menu { list-style:none; padding:0; margin:0; }
-        .nav-menu li { padding: 15px 20px; border-radius: 15px; cursor: pointer; transition: 0.2s; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+        .nav-menu li { padding: 15px 20px; border-radius: 15px; cursor: pointer; transition: 0.2s; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; font-size: 15px; }
         .nav-menu li:hover { background: rgba(255,255,255,0.1); }
         .nav-menu li.active { background: white; color: black; font-weight: bold; }
         .reserve-box { background: rgba(0,0,0,0.3); border-radius: 20px; padding: 20px; flex-grow: 1; border: 1px solid rgba(255,255,255,0.05); overflow-y: auto; margin-top: 20px; }
         .reserve-item { font-size: 13px; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); color: #ccc; }
 
-        /* 컨텐츠 영역 */
-        .main-view { flex: 1; padding: 40px 50px; overflow-y: auto; z-index: 10; position: relative; }
+        /* [메인 컨텐츠 영역] */
+        .main-view { flex: 1; padding: 40px 50px; overflow-y: auto; z-index: 10; position: relative; scroll-behavior: smooth; }
         .search-container { margin-bottom: 40px; position: relative; width: 100%; max-width: 700px; }
         .main-search { width: 100%; padding: 18px 30px; border-radius: 40px; border: 1px solid #333; background: #1a1a2e; color: white; font-size: 16px; outline: none; box-sizing: border-box; }
 
-        /* 버튼 핵심 디자인 (안정화) */
-        .btn-action { width: 100%; padding: 15px; border-radius: 15px; border: none; background: var(--ss-gradient); color: white; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(240, 0, 255, 0.3); transition: 0.3s; }
-        .btn-action:hover { transform: scale(1.02); filter: brightness(1.1); }
+        /* [노래 카드 및 버튼 디자인] */
+        .chart-card { display: flex; align-items: center; background: rgba(255,255,255,0.03); padding: 15px 20px; border-radius: 18px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.05); transition: 0.3s; }
+        .chart-card:hover { transform: translateX(5px); background: rgba(255,255,255,0.06); }
+        .rank-num { font-size: 20px; font-weight: 900; color: var(--ss-pink); margin-right: 15px; min-width: 25px; }
+        .song-info { flex: 1; }
+        .card-btns { display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; } /* 모바일에서 줄바꿈 방지 */
         
-        .btn-direct { background: linear-gradient(135deg, #007bff, #00c6ff) !important; color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 12px; }
-        .btn-reserve { background: linear-gradient(135deg, #ff007b, #ff5e62) !important; color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 12px; }
-        
-        .btn-control { padding: 10px 18px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; cursor: pointer; font-weight: bold; font-size: 13px; }
+        .btn-direct { background: linear-gradient(135deg, #007bff, #00c6ff) !important; color: white; border: none; padding: 10px 18px; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 12px; white-space: nowrap; transition: 0.2s; }
+        .btn-reserve { background: linear-gradient(135deg, #ff007b, #ff5e62) !important; color: white; border: none; padding: 10px 18px; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 12px; white-space: nowrap; transition: 0.2s; }
+        .btn-direct:active, .btn-reserve:active { transform: scale(0.95); }
 
-        /* 모달 및 노래방 뷰 (안정화) */
-        #karaoke-view { display: none; position: fixed; inset: 0; background: #000; z-index: 9000; flex-direction: column; align-items: center; justify-content: center; }
-        #score-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000; align-items: center; justify-content: center; backdrop-filter: blur(15px); }
-        .score-card { background: #1a1a2e; padding: 50px; border-radius: 40px; border: 2px solid var(--ss-pink); text-align: center; width: 380px; box-shadow: 0 0 50px rgba(255, 0, 123, 0.3); }
-        .share-btns { display: flex; gap: 12px; margin-top: 25px; }
-        .btn-kakao { background: #fee500; color: #3c1e1e; flex: 1; padding: 15px; border-radius: 15px; border: none; font-weight: bold; cursor: pointer; }
-        .btn-close { flex: 1; background: #444; color: white; padding: 15px; border-radius: 15px; border: none; font-weight: bold; cursor: pointer; }
+        /* [모바일 대응: PC 레이아웃 형태 유지] */
+        @media (max-width: 768px) {
+            .sidebar { width: 85px; min-width: 85px; padding: 15px 10px; align-items: center; }
+            .user-card { padding: 15px 10px; border-radius: 15px; margin-bottom: 15px; width: 100%; box-sizing: border-box; }
+            .user-card h3, .user-card p, .user-card div { display: none; }
+            .user-card::before { content: 'Sing'; font-size: 11px; font-weight: bold; }
+            
+            .nav-menu li { justify-content: center; padding: 15px 0; font-size: 20px; }
+            .nav-menu li span { display: none; } /* 메뉴 글자 숨김 */
+            .reserve-box { display: none; } /* 공간 확보를 위해 숨김 */
+            
+            .main-view { padding: 25px 15px; }
+            .chart-card { padding: 12px 15px; }
+            .rank-num { font-size: 16px; margin-right: 10px; }
+            .song-title { font-size: 14px; }
+            .btn-direct, .btn-reserve { padding: 8px 12px; font-size: 11px; }
+        }
 
+        /* [공통 섹션 및 모달] */
         .content-section { display: none; animation: fadeIn 0.3s ease-out; }
         .content-section.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        #karaoke-view { display: none; position: fixed; inset: 0; background: #000; z-index: 9000; flex-direction: column; align-items: center; justify-content: center; }
+        .btn-control { padding: 10px 18px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; cursor: pointer; font-weight: bold; font-size: 13px; }
+
+        #score-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000; align-items: center; justify-content: center; backdrop-filter: blur(15px); }
+        .score-card { background: #1a1a2e; padding: 40px; border-radius: 40px; border: 2px solid var(--ss-pink); text-align: center; width: 85%; max-width: 380px; box-shadow: 0 0 50px rgba(255, 0, 123, 0.3); }
         
-        .chart-card { display: flex; align-items: center; background: rgba(255,255,255,0.03); padding: 15px 20px; border-radius: 18px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.05); }
-        .rank-num { font-size: 20px; font-weight: 900; color: var(--ss-pink); margin-right: 15px; min-width: 25px; }
-        .song-info { flex: 1; }
-        .card-btns { display: flex; gap: 8px; align-items: center; }
+        /* 텍스트 그라데이션 및 호환성 해결 */
+        .score-text { 
+            font-size: 90px; font-weight: 900; margin: 20px 0; font-style: italic;
+            background: var(--ss-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: var(--ss-pink); /* Fallback */
+        }
     </style>
 </head>
 <body>
@@ -61,14 +87,14 @@
         <div class="user-card" id="user-card-ui">
             <h3 id="display-name" style="margin:0;">SingStar!</h3>
             <p id="user-status" style="font-size:11px; margin:5px 0; opacity:0.8;">FREE MEMBER</p>
-            <div style="font-size:11px;">남은 곡수: <span id="remain-songs-val">0</span>곡</div>
+            <div style="font-size:11px;">남은 곡: <span id="remain-songs-val">0</span>곡</div>
         </div>
         <ul class="nav-menu">
-            <li class="active" onclick="changeTab(this, 'home')">🏠 인기 차트</li>
-            <li onclick="changeTab(this, 'favs')">❤️ 애창곡</li>
-            <li onclick="changeTab(this, 'billing')">💳 멤버십 결제</li>
-            <li onclick="changeTab(this, 'profile')">🎙️ 내 정보 관리</li>
-            <li onclick="startNextSong()" style="background:var(--ss-purple); margin-top:20px; color:white; justify-content:center; font-weight:bold; box-shadow: 0 4px 15px rgba(125, 42, 232, 0.4);">▶️ 다음 곡 시작</li>
+            <li class="active" onclick="changeTab(this, 'home')">🏠 <span>인기 차트</span></li>
+            <li onclick="changeTab(this, 'favs')">❤️ <span>애창곡</span></li>
+            <li onclick="changeTab(this, 'billing')">💳 <span>멤버십</span></li>
+            <li onclick="changeTab(this, 'profile')">🎙️ <span>내 정보</span></li>
+            <li onclick="startNextSong()" style="background:var(--ss-purple); margin-top:20px; color:white; justify-content:center; font-weight:bold; box-shadow: 0 4px 15px rgba(125, 42, 232, 0.4);">▶️ <span>시작</span></li>
         </ul>
         <div class="reserve-box">
             <div style="font-size:12px; color:var(--ss-pink); font-weight:bold; margin-bottom:10px;">📋 예약 목록</div>
@@ -78,34 +104,26 @@
 
     <div class="main-view">
         <div class="search-container">
-            <input type="text" id="main-search-input" class="main-search" placeholder="노래 제목이나 가수를 입력하고 Enter!">
+            <input type="text" id="main-search-input" class="main-search" placeholder="제목/가수 입력 후 Enter!">
         </div>
 
         <section id="section-home" class="content-section active">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                <h2 style="margin:0;">🔥 실시간 인기 차트</h2>
-                <button onclick="luckyDraw()" style="padding:10px 20px; border-radius:50px; border:none; background:#ffcc00; color:#000; font-weight:bold; cursor:pointer;">🎲 랜덤 추천</button>
+                <h2 style="margin:0; font-size:22px;">🔥 실시간 인기 차트</h2>
+                <button onclick="luckyDraw()" style="padding:10px 20px; border-radius:50px; border:none; background:#ffcc00; color:#000; font-weight:bold; cursor:pointer;">🎲 추천</button>
             </div>
             <div id="chart-list"></div>
         </section>
 
-        <section id="section-favs" class="content-section">
-            <h2>❤️ 나의 애창곡</h2>
-            <div id="fav-list"></div>
-        </section>
-
+        <section id="section-favs" class="content-section"><h2>❤️ 나의 애창곡</h2><div id="fav-list"></div></section>
+        
         <section id="section-billing" class="content-section">
             <h2>💳 멤버십 요금제</h2>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-                <div style="background:var(--glass); padding:40px; border-radius:30px; text-align:center;">
-                    <h3 style="opacity:0.6;">일반 회원</h3>
-                    <h1 style="margin:20px 0;">0원</h1>
-                    <button class="btn-action" style="background:#444; cursor:default;">이용 중</button>
-                </div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px;">
                 <div style="background:rgba(255, 0, 123, 0.1); padding:40px; border-radius:30px; text-align:center; border:1px solid var(--ss-pink);">
                     <h3 style="color:var(--ss-pink);">VIP 프리미엄</h3>
                     <h1 style="margin:20px 0;">9,900원</h1>
-                    <button class="btn-action" onclick="upgradePlan()">지금 결제하기</button>
+                    <button class="btn-direct" style="width:100%; padding:15px; font-size:15px;" onclick="upgradePlan()">결제하기</button>
                 </div>
             </div>
         </section>
@@ -113,40 +131,32 @@
         <section id="section-profile" class="content-section">
             <h2>👤 내 정보 관리</h2>
             <div style="background:var(--glass); padding:30px; border-radius:25px; max-width:450px;">
-                <label style="display:block; margin-bottom:10px; font-size:14px; opacity:0.8;">닉네임 변경</label>
-                <input type="text" id="edit-nickname" placeholder="새 닉네임 입력" style="width:100%; padding:15px; margin-bottom:20px; border-radius:12px; border:1px solid #333; background:#000; color:white; box-sizing:border-box;">
-                <button class="btn-action" onclick="updateNickname()">변경 내용 저장</button>
-                <button onclick="doLogout()" style="width:100%; background:none; color:#ff4d4d; border:1px solid #ff4d4d; padding:12px; border-radius:12px; cursor:pointer; margin-top:20px;">안전하게 로그아웃</button>
+                <input type="text" id="edit-nickname" placeholder="새 닉네임" style="width:100%; padding:15px; margin-bottom:20px; border-radius:12px; border:1px solid #333; background:#000; color:white; box-sizing:border-box;">
+                <button class="btn-reserve" style="width:100%; padding:15px; font-size:15px;" onclick="updateNickname()">변경 저장</button>
             </div>
         </section>
     </div>
 
     <div id="karaoke-view">
-        <div id="live-hud" style="position:absolute; top:40px; right:50px; text-align:right;">
+        <div id="yt-player" style="width:85%; aspect-ratio:16/9; border-radius:25px; overflow:hidden; border: 2px solid rgba(255,255,255,0.1);"></div>
+        <div style="margin-top:30px; display:flex; gap:15px; align-items:center;">
+            <button class="btn-control" onclick="changeKey(-1)">♭</button>
+            <span id="key-val" style="font-size:20px; font-weight:bold; min-width:30px; text-align:center;">0</span>
+            <button class="btn-control" onclick="changeKey(1)">♯</button>
+            <button class="btn-control" onclick="toggleClubMode()" style="background:linear-gradient(to right, #00f2fe, #4facfe); border:none;">🌈 클럽</button>
+            <button class="btn-control" style="background:var(--ss-pink); border:none;" onclick="exitKaraoke()">🛑 종료</button>
         </div>
-        
-        <div id="yt-player" style="width:85%; aspect-ratio:16/9; border-radius:25px; overflow:hidden; border: 2px solid rgba(255,255,255,0.1); box-shadow: 0 20px 50px rgba(0,0,0,0.8);"></div>
-        
-        <div style="margin-top:30px; display:flex; flex-direction:column; align-items:center; gap:20px; width:100%;">
-            <div style="display:flex; gap:15px;">
-                <button class="btn-control" onclick="changeKey(-1)">KEY ♭</button>
-                <span id="key-val" style="font-size:20px; font-weight:bold; min-width:30px; text-align:center;">0</span>
-                <button class="btn-control" onclick="changeKey(1)">KEY ♯</button>
-                <button class="btn-control" onclick="toggleClubMode()" style="background:linear-gradient(to right, #00f2fe, #4facfe); border:none;">🌈 클럽조명</button>
-                <button class="btn-control" style="background:var(--ss-pink); border:none;" onclick="exitKaraoke()">🛑 노래 종료</button>
-            </div>
-            <canvas id="visualizer" style="width:60%; height:80px;"></canvas>
-        </div>
+        <canvas id="visualizer" style="width:60%; height:80px; margin-top:20px;"></canvas>
     </div>
 
     <div id="score-modal">
         <div class="score-card">
             <h2 style="color:var(--ss-pink); margin:0;">SingStar 점수</h2>
-            <div id="final-score" style="font-size:100px; font-weight:900; margin:20px 0; font-style:italic;">0</div>
-            <p id="score-comment" style="opacity:0.8;">오늘 컨디션 최고인데요? 🎉</p>
-            <div class="share-btns">
-                <button class="btn-kakao" onclick="window.shareToKatalk()">카톡 자랑</button>
-                <button class="btn-close" onclick="closeScore()">닫기</button>
+            <div id="final-score" class="score-text">0</div>
+            <p id="score-comment" style="opacity:0.8;">와우! 대단한 실력이에요! 🎉</p>
+            <div style="display:flex; gap:12px; margin-top:25px;">
+                <button onclick="window.shareToKatalk()" style="background:#fee500; color:#3c1e1e; flex:1; padding:15px; border-radius:15px; border:none; font-weight:bold; cursor:pointer;">카톡 자랑</button>
+                <button onclick="closeScore()" style="flex:1; background:#444; color:white; padding:15px; border-radius:15px; border:none; font-weight:bold; cursor:pointer;">닫기</button>
             </div>
         </div>
     </div>
@@ -155,16 +165,7 @@
     <script src="https://www.youtube.com/iframe_api"></script>
     <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.0/kakao.min.js"></script>
     <script>
-      if (!Kakao.isInitialized()) {
-        // 이미 발급받으신 키를 그대로 사용합니다.
-        Kakao.init('cc6a6b5b5edd90eac6f308fbf5f1ea13');
-      }
+        if (!Kakao.isInitialized()) Kakao.init('cc6a6b5b5edd90eac6f308fbf5f1ea13');
     </script>
-    <link rel="manifest" href="manifest.json">
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js');
-  }
-</script>
 </body>
 </html>

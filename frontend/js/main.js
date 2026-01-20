@@ -17,7 +17,7 @@ const charts = [
     { title: "[TJ노래방] 밤양갱 - 비비(BIBI)", artist: "비비" },
     { title: "[TJ노래방] Hype boy - NewJeans", artist: "NewJeans" },
     { title: "[TJ노래방] Seven(Clean Ver.) - 정국(Feat.Latto)", artist: "정국" },
-    { title: "[TJ노래방  MR Live] 첫만남은계획대로되지않아 - TWS(투어스)", artist: "TWS" },
+    { title: "[TJ노래방   MR Live] 첫만남은계획대로되지않아 - TWS(투어스)", artist: "TWS" },
     { title: "[TJ노래방] Super Lady - (여자)아이들", artist: "(여자)아이들" },
     { title: "[TJ노래방] To. X - 태연(TAEYEON)", artist: "태연" },
     { title: "[TJ노래방] Love 119 - RIIZE", artist: "RIIZE" },
@@ -37,10 +37,7 @@ const charts = [
 // [2. 초기화]
 window.onload = () => {
     const savedNick = localStorage.getItem("nickname");
-    if (!savedNick) { 
-        // window.location.href = "auth.html"; // 실제 사용 시 주석 해제
-        return; 
-    }
+    if (!savedNick) return; 
     
     const displayEl = document.getElementById("display-name");
     if (displayEl) displayEl.innerText = savedNick;
@@ -144,36 +141,51 @@ window.startNextSong = function() {
     window.setupScore();
 };
 
-// [5. 카카오톡 공유 기능]
+// [5. 카카오톡 공유 기능 - 모바일 최적화 수정]
 window.shareToKatalk = function() {
-    const score = document.getElementById('final-score')?.innerText || "0";
-    const nickname = localStorage.getItem("nickname") || "친구";
+    try {
+        if (!window.Kakao) {
+            alert("카카오 SDK가 로드되지 않았습니다.");
+            return;
+        }
 
-    if (!window.Kakao || !Kakao.isInitialized()) {
-        return alert("카카오 SDK가 초기화되지 않았습니다.");
-    }
-    
-    Kakao.Share.sendDefault({
-        objectType: 'feed',
-        content: {
-            title: `🎤 ${nickname}님의 노래 점수: ${score}점!`,
-            description: `SingStar에서 방금 한 곡 뽑았습니다! 저보다 높은 점수 도전하실 분?`,
-            imageUrl: 'https://cdn.pixabay.com/photo/2016/11/23/15/48/audience-1853662_1280.jpg',
-            link: {
-                mobileWebUrl: 'http://127.0.0.1:5500',
-                webUrl: 'http://127.0.0.1:5500',
-            },
-        },
-        buttons: [
-            {
-                title: '나도 도전하기',
+        if (!Kakao.isInitialized()) {
+            alert("카카오 SDK가 초기화되지 않았습니다. index.html의 키를 확인하세요.");
+            return;
+        }
+
+        const scoreEl = document.getElementById('final-score');
+        const score = scoreEl ? scoreEl.innerText : "0";
+        const nickname = localStorage.getItem("nickname") || "친구";
+
+        // 모바일 접속 주소를 정확하게 잡기 위해 origin 사용
+        // 주의: 카카오 설정에 이 주소(http://192.168.x.x:5500)가 등록되어 있어야 함
+        const currentUrl = window.location.origin;
+
+        Kakao.Share.sendDefault({
+            objectType: 'feed',
+            content: {
+                title: `🎤 ${nickname}님의 노래 점수: ${score}점!`,
+                description: `SingStar에서 방금 한 곡 뽑았습니다! 저보다 높은 점수 도전하실 분?`,
+                imageUrl: 'https://cdn.pixabay.com/photo/2016/11/23/15/48/audience-1853662_1280.jpg',
                 link: {
-                    mobileWebUrl: 'http://127.0.0.1:5500',
-                    webUrl: 'http://127.0.0.1:5500',
+                    mobileWebUrl: currentUrl,
+                    webUrl: currentUrl,
                 },
             },
-        ],
-    });
+            buttons: [
+                {
+                    title: '나도 도전하기',
+                    link: {
+                        mobileWebUrl: currentUrl,
+                        webUrl: currentUrl,
+                    },
+                },
+            ],
+        });
+    } catch (err) {
+        alert("카톡 공유 중 오류 발생: " + err.message);
+    }
 };
 
 // [6. 추천 및 UI 제어]
