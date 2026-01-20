@@ -160,5 +160,11 @@
         Kakao.init('cc6a6b5b5edd90eac6f308fbf5f1ea13');
       }
     </script>
+    <link rel="manifest" href="manifest.json">
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
+</script>
 </body>
 </html>
