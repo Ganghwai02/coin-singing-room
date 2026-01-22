@@ -362,6 +362,29 @@ window.upgradePlan = function() {
     }
 };
 
+function handleRegister() {
+    const data = {
+        email: $('#reg-id').val(),
+        password: $('#reg-pw').val(),
+        nickname: $('#reg-nick').val()
+    };
+
+    $.ajax({
+        url: "/api/users/register",
+        method: "POST",
+        contentType: "application/json",
+        data: JSON.stringify(data),
+        success: function(res) {
+            alert("가입을 축하합니다! 로그인해주세요.");
+            toggleAuth('login');
+        },
+        error: function(err) {
+            alert("가입 실패: " + (err.responseJSON?.detail || "이미 존재하는 아이디입니다."));
+        }
+    });
+}
+
+
 window.doLogout = function() {
     if (confirm("로그아웃 하시겠습니까?")) {
         localStorage.removeItem("nickname");
@@ -378,19 +401,69 @@ function toggleAuth(mode) {
 }
 
 // 로그아웃 처리
-function handleLogout() {
-    if(confirm("로그아웃 하시겠습니까?")) {
-        // 로컬스토리지나 토큰 삭제 로직 추가 가능
-        alert("로그아웃 되었습니다.");
-        location.reload(); // 첫 화면으로 리로드
-    }
+function handleRegister() {
+    const email = $('#reg-id').val();
+    const nick = $('#reg-nick').val();
+    const pw = $('#reg-pw').val();
+
+    $.ajax({
+        url: "http://127.0.0.1:8000/api/users/register",
+        method: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({
+            "email": email,
+            "username": nick,
+            "password": pw
+        }),
+        success: function(res) {
+            alert("가입 성공! 이제 로그인하세요.");
+            toggleAuth('login');
+        },
+        error: function(err) {
+            alert("가입 실패: " + (err.responseJSON?.detail || "정보를 확인하세요."));
+        }
+    });
 }
 
-// 닉네임 변경 (API 연동 예시)
 function updateNickname() {
     const newNick = $('#edit-nickname').val();
-    if(!newNick) return alert("닉네임을 입력해주세요.");
+    // 1. 로컬 스토리지에서 토큰 가져오기
+    const token = localStorage.getItem('access_token'); 
+
+    if(!token) {
+        alert("로그인 정보가 없습니다. 다시 로그인해주세요.");
+        return;
+    }
+
+    $.ajax({
+        url: "http://127.0.0.1:8000/api/users/me",
+        method: "PATCH",
+        headers: { 
+            // 2. Bearer 뒤에 반드시 한 칸 공백이 있어야 함!
+            "Authorization": "Bearer " + token, 
+            "Content-Type": "application/json"
+        },
+        data: JSON.stringify({ "username": newNick }),
+        success: function(res) {
+            alert("닉네임 변경 성공!");
+            $('.user-info h3').text(res.username); 
+        },
+        error: function(err) {
+            // 401 에러가 여기서 잡힘
+            alert("변경 실패: 인증 정보를 확인할 수 없습니다. 다시 로그인해 주세요.");
+        }
+    });
+}
+
+function toggleAuth(mode) {
+    // 모든 박스를 숨기고 선택한 모드만 표시
+    $('#login-box, #join-box, #find-box').hide();
     
-    // 백엔드 연동 부분 (Ajax)
-    alert(`닉네임이 '${newNick}'(으)로 변경되었습니다.`);
+    if(mode === 'join') {
+        $('#join-box').show();
+    } else if(mode === 'find') {
+        $('#find-box').show();
+    } else {
+        $('#login-box').show();
+    }
 }

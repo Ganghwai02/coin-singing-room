@@ -3,22 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <title>SingStar ★ Login</title>
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
     <style>
         :root { --ss-purple: #7d2ae8; --ss-pink: #ff007b; }
         body { 
             background: #0b0915; color: white; font-family: 'Pretendard', sans-serif; 
             display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;
+            overflow: hidden;
         }
         .neon-bg { position: fixed; width: 500px; height: 500px; background: radial-gradient(circle, var(--ss-purple) 0%, transparent 70%); filter: blur(100px); opacity: 0.15; z-index: 0; }
-        
         .auth-card { 
             position: relative; z-index: 10; width: 450px; padding: 50px;
             background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 40px; backdrop-filter: blur(25px); text-align: center;
         }
-
         h1 { font-size: 40px; font-weight: 900; margin-bottom: 30px; text-shadow: 0 0 15px var(--ss-pink); }
-
         .input-group { text-align: left; margin-bottom: 25px; }
         .input-label { font-size: 12px; color: #888; margin-left: 10px; margin-bottom: 5px; display: block; }
         input { 
@@ -27,7 +26,6 @@
             box-sizing: border-box; transition: 0.3s;
         }
         input:focus { border-color: var(--ss-pink); box-shadow: 0 0 10px rgba(255,0,123,0.2); }
-
         .plan-title { font-size: 12px; color: var(--ss-pink); font-weight: bold; text-align: left; margin-bottom: 10px; }
         .plan-grid { display: flex; gap: 10px; margin-bottom: 35px; }
         .plan-item { 
@@ -37,7 +35,6 @@
         .plan-item.active { border-color: var(--ss-pink); background: rgba(255, 0, 123, 0.1); }
         .plan-name { font-weight: bold; font-size: 14px; display: block; }
         .plan-price { font-size: 11px; color: #888; }
-
         .btn-submit { 
             width: 100%; padding: 18px; border-radius: 18px; border: none; 
             background: linear-gradient(to right, var(--ss-purple), var(--ss-pink));
@@ -45,92 +42,85 @@
             transition: 0.3s; box-shadow: 0 10px 20px rgba(0,0,0,0.3);
         }
         .btn-submit:hover { transform: translateY(-3px); filter: brightness(1.1); }
-        
         .footer-links { margin-top: 20px; font-size: 13px; color: #666; }
         .footer-links span { cursor: pointer; margin: 0 10px; }
     </style>
 </head>
 <body>
     <div class="neon-bg"></div>
-    
     <div class="auth-card">
         <h1>SingStar ★</h1>
-
         <div class="input-group">
             <span class="input-label">아이디 (닉네임)</span>
-            <input type="text" id="user-id" placeholder="사용할 닉네임을 입력하세요">
+            <input type="text" id="user-id" placeholder="닉네임을 입력하세요">
         </div>
         <div class="input-group">
             <span class="input-label">비밀번호</span>
             <input type="password" id="user-pw" placeholder="비밀번호를 입력하세요">
         </div>
-
         <div class="plan-title">요금제 선택</div>
         <div class="plan-grid">
-            <div id="plan-free" class="plan-item active" onclick="setPlan('free', 3)">
+            <div id="plan-free" class="plan-item active" onclick="setPlan('free')">
                 <span class="plan-name">무료 요금제</span>
                 <span class="plan-price">매일 3곡</span>
             </div>
-            <div id="plan-premium" class="plan-item" onclick="setPlan('premium', 9999)">
+            <div id="plan-premium" class="plan-item" onclick="setPlan('premium')">
                 <span class="plan-name">프리미엄</span>
                 <span class="plan-price">무제한 이용</span>
             </div>
         </div>
-
         <button class="btn-submit" onclick="handleLogin()">노래방 입장하기</button>
-
         <div class="footer-links">
-            <span>회원가입</span> | <span>비밀번호 찾기</span>
+            <span onclick="alert('회원가입 기능은 API 연동이 필요합니다.')">회원가입</span> | 
+            <span onclick="alert('준비 중입니다.')">비밀번호 찾기</span>
         </div>
     </div>
 
     <script>
-    // 현재 선택된 플랜 정보 저장용 변수
-    let currentPlan = 'free';
-    let currentSongs = 3;
+        const API_BASE = "http://127.0.0.1:8000/api";
+        let selectedPlan = 'free';
 
-    // 1. 요금제 선택 시 디자인 변경 및 값 저장
-    function setPlan(plan, songs) {
-        currentPlan = plan;
-        currentSongs = songs;
-        
-        // 모든 요금제에서 active 클래스 제거
-        document.querySelectorAll('.plan-item').forEach(el => el.classList.remove('active'));
-        
-        // 클릭한 요금제에만 active 클래스 추가
-        document.getElementById(`plan-${plan}`).classList.add('active');
-        console.log("선택된 요금제:", plan, "곡수:", songs);
-    }
-
-    // 2. 입장하기 버튼 클릭 시 실행 (로그인/가입 통합 처리)
-    function handleLogin() {
-        const userId = document.getElementById('user-id').value.trim();
-        const userPw = document.getElementById('user-pw').value.trim();
-
-        // 유효성 검사
-        if(!userId || !userPw) {
-            alert("아이디와 비밀번호를 모두 입력해주세요!");
-            return;
+        function setPlan(plan) {
+            selectedPlan = plan;
+            $('.plan-item').removeClass('active');
+            $(`#plan-${plan}`).addClass('active');
         }
 
-        // [핵심] index.html의 잠금 해제용 데이터 저장
-        // 1. 닉네임 저장
-        localStorage.setItem("nickname", userId);
-        // 2. 요금제 정보 저장
-        localStorage.setItem("userPlan", currentPlan);
-        // 3. 남은 곡수 저장
-        localStorage.setItem("remainSongs", currentSongs);
+        function handleLogin() {
+            const userId = $('#user-id').val().trim();
+            const userPw = $('#user-pw').val().trim();
 
-        alert(`${userId}님, 환영합니다! ${currentPlan === 'premium' ? '프리미엄' : '무료'} 모드로 입장합니다.`);
+            if(!userId || !userPw) {
+                alert("아이디와 비밀번호를 입력해주세요!");
+                return;
+            }
 
-        // index.html로 이동
-        location.href = "index.html";
-    }
+            // 백엔드 로그인 API 호출
+            const formData = new URLSearchParams();
+            formData.append('username', userId);
+            formData.append('password', userPw);
 
-    // 엔터키 지원
-    document.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleLogin();
-    });
+            $.ajax({
+                url: API_BASE + "/users/login",
+                method: "POST",
+                data: formData.toString(),
+                contentType: "application/x-www-form-urlencoded",
+                success: function(res) {
+                    // 성공 시 토큰 및 유저 정보 저장
+                    localStorage.setItem('access_token', res.access_token);
+                    localStorage.setItem('user_plan', selectedPlan); // 선택한 플랜 저장
+                    
+                    alert(userId + "님 환영합니다!");
+                    location.href = "index.html"; // 메인으로 이동
+                },
+                error: function() {
+                    alert("로그인 실패: 아이디 또는 비밀번호를 확인해주세요.");
+                }
+            });
+        }
+
+        // 엔터키 지원
+        $(document).keypress(function(e) { if(e.which == 13) handleLogin(); });
     </script>
 </body>
 </html>

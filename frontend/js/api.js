@@ -30,7 +30,7 @@ const AuthAPI = {
 
             if (res.ok) {
                 const data = await res.json();
-                localStorage.setItem("token", data.access_token);
+                localStorage.setItem('access_token', res.access_token);
                 return true;
             }
             return false;

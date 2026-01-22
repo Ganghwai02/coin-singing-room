@@ -13,6 +13,7 @@ class User(Base):
     is_premium = Column(Boolean, default=False)
     is_monthly = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    email = Column(String, unique=True, index=True)
     plan_type = Column(String, default="FREE") # FREE, MONTHLY, PREMIUM
     daily_song_count = Column(Integer, default=0) # 오늘 부른 곡 수
     last_active_date = Column(Date) # 날짜가 바뀌면 count를 초기화하기 위함
