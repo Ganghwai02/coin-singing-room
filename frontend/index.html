@@ -90,10 +90,10 @@
             <div style="font-size:11px;">남은 곡: <span id="remain-songs-val">0</span>곡</div>
         </div>
         <ul class="nav-menu">
-            <li class="active" onclick="changeTab(this, 'home')">🏠 <span>인기 차트</span></li>
-            <li onclick="changeTab(this, 'favs')">❤️ <span>애창곡</span></li>
-            <li onclick="changeTab(this, 'billing')">💳 <span>멤버십</span></li>
-            <li onclick="changeTab(this, 'profile')">🎙️ <span>내 정보</span></li>
+            <li class="active" onclick="changeTab(this, 'home')">🏠 <span>노래방 인기 차트</span></li>
+            <li onclick="changeTab(this, 'favs')">❤️ <span>애창곡 리스트</span></li>
+            <li onclick="changeTab(this, 'billing')">💳 <span>멤버십 결제</span></li>
+            <li onclick="changeTab(this, 'profile')">🎙️ <span>내 정보 관리</span></li>
             <li onclick="startNextSong()" style="background:var(--ss-purple); margin-top:20px; color:white; justify-content:center; font-weight:bold; box-shadow: 0 4px 15px rgba(125, 42, 232, 0.4);">▶️ <span>시작</span></li>
         </ul>
         <div class="reserve-box">
@@ -104,18 +104,18 @@
 
     <div class="main-view">
         <div class="search-container">
-            <input type="text" id="main-search-input" class="main-search" placeholder="제목/가수 입력 후 Enter!">
+            <input type="text" id="main-search-input" class="main-search" placeholder="제목/가수 입력">
         </div>
 
         <section id="section-home" class="content-section active">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                <h2 style="margin:0; font-size:22px;">🔥 실시간 인기 차트</h2>
+                <h2 style="margin:0; font-size:22px;">🔥 노래방 인기 차트</h2>
                 <button onclick="luckyDraw()" style="padding:10px 20px; border-radius:50px; border:none; background:#ffcc00; color:#000; font-weight:bold; cursor:pointer;">🎲 추천</button>
             </div>
             <div id="chart-list"></div>
         </section>
 
-        <section id="section-favs" class="content-section"><h2>❤️ 나의 애창곡</h2><div id="fav-list"></div></section>
+        <section id="section-favs" class="content-section"><h2>❤️ 나의 애창곡 리스트</h2><div id="fav-list"></div></section>
         
         <section id="section-billing" class="content-section">
             <h2>💳 멤버십 요금제</h2>
@@ -133,6 +133,7 @@
             <div style="background:var(--glass); padding:30px; border-radius:25px; max-width:450px;">
                 <input type="text" id="edit-nickname" placeholder="새 닉네임" style="width:100%; padding:15px; margin-bottom:20px; border-radius:12px; border:1px solid #333; background:#000; color:white; box-sizing:border-box;">
                 <button class="btn-reserve" style="width:100%; padding:15px; font-size:15px;" onclick="updateNickname()">변경 저장</button>
+                <button class="btn-logout" style="flex:1; padding:15px; font-size:15px; background:#444; color:white; border:none; border-radius:20px; cursor:pointer;" onclick="handleLogout()">로그아웃</button>
             </div>
         </section>
     </div>
@@ -167,5 +168,39 @@
     <script>
         if (!Kakao.isInitialized()) Kakao.init('cc6a6b5b5edd90eac6f308fbf5f1ea13');
     </script>
+    <div id="auth-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:20000; align-items:center; justify-content:center; backdrop-filter:blur(10px);">
+    <div style="background:#1a1a2e; padding:35px; border-radius:30px; border:1px solid var(--ss-purple); width:90%; max-width:380px; position:relative;">
+        
+        <div id="login-box">
+            <h2 style="margin-top:0;">로그인</h2>
+            <input type="text" id="login-id" placeholder="아이디" style="width:100%; padding:14px; margin-bottom:10px; border-radius:12px; border:1px solid #333; background:#000; color:white; box-sizing:border-box;">
+            <input type="password" id="login-pw" placeholder="비밀번호" style="width:100%; padding:14px; margin-bottom:20px; border-radius:12px; border:1px solid #333; background:#000; color:white; box-sizing:border-box;">
+            <button class="btn-direct" style="width:100%; padding:15px; margin-bottom:15px;" onclick="handleLogin()">로그인</button>
+            <div style="display:flex; justify-content:space-between; font-size:13px; color:#888;">
+                <span onclick="toggleAuth('join')" style="cursor:pointer; color:var(--ss-pink);">회원가입</span>
+                <span onclick="toggleAuth('find')" style="cursor:pointer;">비밀번호 찾기</span>
+            </div>
+        </div>
+
+        <div id="join-box" style="display:none;">
+            <h2 style="margin-top:0;">회원가입</h2>
+            <input type="text" id="reg-id" placeholder="이메일 주소" style="width:100%; padding:14px; margin-bottom:10px; border-radius:12px; border:1px solid #333; background:#000; color:white; box-sizing:border-box;">
+            <input type="password" id="reg-pw" placeholder="비밀번호" style="width:100%; padding:14px; margin-bottom:10px; border-radius:12px; border:1px solid #333; background:#000; color:white; box-sizing:border-box;">
+            <input type="text" id="reg-nick" placeholder="닉네임" style="width:100%; padding:14px; margin-bottom:20px; border-radius:12px; border:1px solid #333; background:#000; color:white; box-sizing:border-box;">
+            <button class="btn-direct" style="width:100%; padding:15px;" onclick="handleRegister()">가입완료</button>
+            <p onclick="toggleAuth('login')" style="text-align:center; font-size:13px; margin-top:15px; cursor:pointer; color:#888;">이미 계정이 있나요? 로그인</p>
+        </div>
+
+        <div id="find-box" style="display:none;">
+            <h2 style="margin-top:0;">비밀번호 찾기</h2>
+            <p style="color:#aaa; font-size:13px; margin-bottom:20px;">가입하신 이메일로 임시 비밀번호를 전송합니다.</p>
+            <input type="email" id="find-email" placeholder="이메일 입력" style="width:100%; padding:14px; margin-bottom:20px; border-radius:12px; border:1px solid #333; background:#000; color:white; box-sizing:border-box;">
+            <button class="btn-reserve" style="width:100%; padding:15px;" onclick="handleFindPw()">전송하기</button>
+            <p onclick="toggleAuth('login')" style="text-align:center; font-size:13px; margin-top:15px; cursor:pointer; color:#888;">로그인으로 돌아가기</p>
+        </div>
+
+        <button onclick="$('#auth-modal').hide()" style="position:absolute; top:20px; right:20px; background:none; border:none; color:#555; font-size:20px; cursor:pointer;">&times;</button>
+    </div>
+</div>
 </body>
 </html>

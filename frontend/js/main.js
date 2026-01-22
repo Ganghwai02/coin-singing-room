@@ -368,3 +368,29 @@ window.doLogout = function() {
         window.location.href = "auth.html";
     }
 };
+
+// 모달 내 화면 전환 함수
+function toggleAuth(mode) {
+    $('#login-box, #join-box, #find-box').hide();
+    if(mode === 'login') $('#login-box').show();
+    else if(mode === 'join') $('#join-box').show();
+    else if(mode === 'find') $('#find-box').show();
+}
+
+// 로그아웃 처리
+function handleLogout() {
+    if(confirm("로그아웃 하시겠습니까?")) {
+        // 로컬스토리지나 토큰 삭제 로직 추가 가능
+        alert("로그아웃 되었습니다.");
+        location.reload(); // 첫 화면으로 리로드
+    }
+}
+
+// 닉네임 변경 (API 연동 예시)
+function updateNickname() {
+    const newNick = $('#edit-nickname').val();
+    if(!newNick) return alert("닉네임을 입력해주세요.");
+    
+    // 백엔드 연동 부분 (Ajax)
+    alert(`닉네임이 '${newNick}'(으)로 변경되었습니다.`);
+}

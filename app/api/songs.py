@@ -5,7 +5,6 @@ from typing import Optional, List, Dict, Any
 from datetime import date
 import os
 from pathlib import Path
-import mido
 
 from app.database import get_db
 from app.models import User, Song, Favorite, Queue, Recording 
