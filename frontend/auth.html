@@ -12,10 +12,8 @@
             overflow: hidden;
         }
         
-        /* 배경 효과 */
         .neon-bg { position: fixed; width: 500px; height: 500px; background: radial-gradient(circle, var(--ss-purple) 0%, transparent 70%); filter: blur(100px); opacity: 0.15; z-index: 0; }
         
-        /* 로그인 카드 */
         .auth-card { 
             position: relative; z-index: 10; width: 420px; padding: 50px;
             background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
@@ -25,7 +23,6 @@
 
         h1 { font-size: 40px; font-weight: 900; margin-bottom: 35px; text-shadow: 0 0 15px var(--ss-pink); letter-spacing: -1px; }
 
-        /* 입력 그룹 */
         .input-group { text-align: left; margin-bottom: 25px; }
         .input-label { font-size: 12px; color: #888; margin-left: 10px; margin-bottom: 8px; display: block; font-weight: bold; }
         input { 
@@ -35,7 +32,6 @@
         }
         input:focus { border-color: var(--ss-pink); box-shadow: 0 0 10px rgba(255,0,123,0.3); }
 
-        /* 요금제 선택 */
         .plan-title { font-size: 12px; color: var(--ss-pink); font-weight: bold; text-align: left; margin-bottom: 12px; }
         .plan-grid { display: flex; gap: 12px; margin-bottom: 35px; }
         .plan-item { 
@@ -46,7 +42,6 @@
         .plan-name { font-weight: bold; font-size: 14px; display: block; margin-bottom: 4px; }
         .plan-price { font-size: 11px; color: #aaa; }
 
-        /* 입장 버튼 */
         .btn-submit { 
             width: 100%; padding: 18px; border-radius: 18px; border: none; 
             background: linear-gradient(to right, var(--ss-purple), var(--ss-pink));
@@ -55,7 +50,6 @@
         }
         .btn-submit:hover { transform: translateY(-3px); filter: brightness(1.1); box-shadow: 0 15px 25px rgba(255, 0, 123, 0.3); }
         
-        /* 하단 링크 */
         .footer-links { margin-top: 25px; font-size: 13px; color: #666; }
         .footer-links span { cursor: pointer; margin: 0 10px; transition: 0.2s; }
         .footer-links span:hover { color: #999; text-decoration: underline; }
@@ -91,60 +85,73 @@
         <button class="btn-submit" onclick="handleLogin()">노래방 입장하기</button>
 
         <div class="footer-links">
-            <span onclick="alert('회원가입 기능은 관리자에게 문의하세요.')">회원가입</span> | 
+            <span onclick="handleSignup()">회원가입</span> | 
             <span onclick="alert('준비 중입니다.')">비밀번호 찾기</span>
         </div>
     </div>
 
     <script>
-        const API_BASE = "http://127.0.0.1:8000/api";
         let selectedPlan = 'free';
 
-        // 1. 요금제 선택 시 디자인 변경 및 값 저장
         function setPlan(plan) {
             selectedPlan = plan;
             $('.plan-item').removeClass('active');
             $(`#plan-${plan}`).addClass('active');
         }
 
-        // 2. 입장하기 (로그인 처리)
+        // [핵심: 회원가입 기능]
+        function handleSignup() {
+            const userId = $('#user-id').val().trim();
+            const userPw = $('#user-pw').val().trim();
+
+            if(!userId || !userPw) {
+                alert("가입할 아이디와 비번을 입력해주세요!");
+                return;
+            }
+
+            // 이미 존재하는 아이디인지 확인
+            if(localStorage.getItem('user_' + userId)) {
+                alert("이미 존재하는 닉네임입니다.");
+                return;
+            }
+
+            // 사용자 정보 저장
+            const userInfo = { pw: userPw, plan: selectedPlan };
+            localStorage.setItem('user_' + userId, JSON.stringify(userInfo));
+            
+            alert(`✨ ${userId}님 회원가입 완료! 다시 '입장하기'를 눌러주세요.`);
+        }
+
+        // [핵심: 로그인 기능]
         function handleLogin() {
             const userId = $('#user-id').val().trim();
             const userPw = $('#user-pw').val().trim();
 
             if(!userId || !userPw) {
-                alert("아이디와 비밀번호를 모두 입력해주세요!");
+                alert("아이디와 비밀번호를 입력해주세요!");
                 return;
             }
 
-            // [백엔드 연동] OAuth2 Password Flow 데이터 준비
-            const formData = new URLSearchParams();
-            formData.append('username', userId);
-            formData.append('password', userPw);
+            // 저장된 정보 불러오기
+            const storedData = localStorage.getItem('user_' + userId);
 
-            $.ajax({
-                url: API_BASE + "/users/login",
-                method: "POST",
-                data: formData.toString(),
-                contentType: "application/x-www-form-urlencoded",
-                success: function(res) {
-                    // 성공 시 토큰 및 선택한 요금제 정보를 LocalStorage에 저장
-                    localStorage.setItem('access_token', res.access_token);
-                    localStorage.setItem('user_plan', selectedPlan); 
+            if (storedData) {
+                const user = JSON.parse(storedData);
+                if (user.pw === userPw) {
+                    // 로그인 성공: 메인에서 쓸 정보들 세팅
+                    localStorage.setItem('nickname', userId);
+                    localStorage.setItem('userPlan', user.plan);
                     
-                    alert(`${userId}님, 환영합니다! ${selectedPlan === 'premium' ? '프리미엄' : '무료'} 모드로 입장합니다.`);
-                    
-                    // 메인 페이지(index.html)로 이동
+                    alert(`${userId}님, 환영합니다!`);
                     location.href = "index.html";
-                },
-                error: function(xhr) {
-                    const errorMsg = xhr.responseJSON ? xhr.responseJSON.detail : "로그인에 실패했습니다.";
-                    alert("로그인 실패: " + errorMsg);
+                } else {
+                    alert("비밀번호가 일치하지 않습니다.");
                 }
-            });
+            } else {
+                alert("가입되지 않은 닉네임입니다. '회원가입'을 먼저 눌러주세요!");
+            }
         }
 
-        // 엔터키 지원
         $(document).on('keypress', function(e) {
             if (e.which == 13) handleLogin();
         });
