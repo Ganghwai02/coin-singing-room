@@ -7,33 +7,40 @@ window.favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
 let currentVolume = 0;
 let currentScoreValue = 0;
 let audioCtx, analyser, dataArray, canvasCtx, animationId, scoreInterval;
+let ytPlayer; // 유튜브 API 인스턴스 저장용
 
-// [데이터] 유튜브 ID는 TJ 공식 채널의 퍼가기 허용 영상을 기준으로 업데이트되었습니다.
+// [데이터] 유튜브 ID 업데이트 완료
 const charts = [
-    { title: "[TJ노래방] 에피소드 - 이무진", artist: "이무진", youtubeId: "amXvAmZ_Y68" },
-    { title: "[TJ노래방] Love wins all - IU", artist: "아이유", youtubeId: "JLeoJ4x8csg" },
-    { title: "[TJ노래방] 밤양갱 - 비비(BIBI)", artist: "비비", youtubeId: "sMd5Elm_L90" },
-    { title: "[TJ노래방] Hype boy - NewJeans", artist: "NewJeans", youtubeId: "11cta61wi0g" },
-    { title: "[TJ노래방] Seven - 정국", artist: "정국", youtubeId: "UatZ99C0RMo" },
-    { title: "[TJ노래방] 첫만남은계획대로되지않아 - TWS", artist: "TWS", youtubeId: "X_9T8V6yT_U" },
-    { title: "[TJ노래방] Super Lady - (여자)아이들", artist: "(여자)아이들", youtubeId: "M10XqL9X0_4" },
-    { title: "[TJ노래방] To. X - 태연", artist: "태연", youtubeId: "p_60_I7wT_c" },
-    { title: "[TJ노래방] Love 119 - RIIZE", artist: "RIIZE", youtubeId: "wN6Y9u_3z60" },
-    { title: "[TJ노래방] Perfect Night - LE SSERAFIM", artist: "LE SSERAFIM", youtubeId: "h_8I0D_X9-k" },
-    { title: "[TJ노래방] Drama - 에스파", artist: "aespa", youtubeId: "0Ym6VfN6Gv0" },
-    { title: "[TJ노래방] 헤어지자말해요 - 박재정", artist: "박재정", youtubeId: "7O29N6_uFfI" },
-    { title: "[TJ노래방] I AM - IVE", artist: "IVE", youtubeId: "fM6RREuU_oU" },
-    { title: "[TJ노래방] Ditto - NewJeans", artist: "NewJeans", youtubeId: "r_A9T7t-uI0" },
-    { title: "[TJ노래방] 응급실 - izi", artist: "izi", youtubeId: "3X8yX_yN5sI" },
-    { title: "[TJ노래방] 가시 - 버즈", artist: "버즈", youtubeId: "9V-j0_pM6uI" },
-    { title: "[TJ노래방] 체념 - 빅마마", artist: "빅마마", youtubeId: "mXW9jN-3Rto" },
-    { title: "[TJ노래방] 소주한잔 - 임창정", artist: "임창정", youtubeId: "R_4P_4z8P68" },
-    { title: "[TJ노래방] Welcome to the Show - DAY6", artist: "DAY6", youtubeId: "K1yO1_9zC-U" },
-    { title: "[TJ노래방] 한페이지가될수있게 - DAY6", artist: "DAY6", youtubeId: "h6D-4xRjK_0" }
+    { title: "[TJ노래방] 에피소드 - 이무진", artist: "이무진", youtubeId: "W8eMnbePtbQ" },
+    { title: "[TJ노래방] Love wins all - IU", artist: "아이유", youtubeId: "L2vCogmqKQ0" },
+    { title: "[TJ노래방] 밤양갱 - 비비(BIBI)", artist: "비비", youtubeId: "yckntxi09C8" },
+    { title: "[TJ노래방] Hype boy - NewJeans", artist: "NewJeans", youtubeId: "nTL2KONavNQ" },
+    { title: "[TJ노래방] Seven - 정국", artist: "정국", youtubeId: "i2nSERHnNzQ" },
+    { title: "[TJ노래방] 첫만남은계획대로되지않아 - TWS", artist: "TWS", youtubeId: "lBz7gjy2lQA" },
+    { title: "[TJ노래방] Super Lady - (여자)아이들", artist: "(여자)아이들", youtubeId: "7xRc1Gw3R8E" },
+    { title: "[TJ노래방] To. X - 태연", artist: "태연", youtubeId: "HldgzA0cRTI" },
+    { title: "[TJ노래방] Love 119 - RIIZE", artist: "RIIZE", youtubeId: "pbRbiJ2U43g" },
+    { title: "[TJ노래방] Perfect Night - LE SSERAFIM", artist: "LE SSERAFIM", youtubeId: "HeBwNmCL9pg" },
+    { title: "[TJ노래방] Drama - 에스파", artist: "aespa", youtubeId: "WwYWzXOL4aI" },
+    { title: "[TJ노래방] 헤어지자말해요 - 박재정", artist: "박재정", youtubeId: "hEQyYQUOBMU" },
+    { title: "[TJ노래방] I AM - IVE", artist: "IVE", youtubeId: "WACGS6_8lss" },
+    { title: "[TJ노래방] Ditto - NewJeans", artist: "NewJeans", youtubeId: "OVwHRL3IUi8" },
+    { title: "[TJ노래방] 응급실 - izi", artist: "izi", youtubeId: "QssOhIB5_g4" },
+    { title: "[TJ노래방] 가시 - 버즈", artist: "버즈", youtubeId: "wukKia6CBMw" },
+    { title: "[TJ노래방] 체념 - 빅마마", artist: "빅마마", youtubeId: "MMgr01eV_yo" },
+    { title: "[TJ노래방] 소주한잔 - 임창정 (여자키)", artist: "임창정", youtubeId: "2ULrwTG1HNw" },
+    { title: "[TJ노래방] Welcome to the Show - DAY6", artist: "DAY6", youtubeId: "egNlS05YrMg" },
+    { title: "[TJ노래방] 한페이지가될수있게 - DAY6", artist: "DAY6", youtubeId: "J15TV9vUXmI" }
 ];
 
-// [2. 초기화 및 닉네임 강제 연결]
+// [2. 초기화 및 외부 스크립트 로드]
 window.onload = () => {
+    // 유튜브 IFrame API 스크립트 동적 로드 (보안 우회 핵심)
+    const tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    const firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
     const savedNick = localStorage.getItem("nickname") || "가수님";
     const displayEl = document.getElementById("display-name");
     const editNickInput = document.getElementById("edit-nickname");
@@ -41,11 +48,8 @@ window.onload = () => {
     if (displayEl) displayEl.innerText = savedNick;
     if (editNickInput) editNickInput.value = savedNick;
 
-    // 중요: 닉네임 변경 버튼에 함수 직접 할당
     const saveBtn = document.querySelector("#section-profile button");
-    if (saveBtn) {
-        saveBtn.onclick = window.saveNickname;
-    }
+    if (saveBtn) saveBtn.onclick = window.saveNickname;
 
     window.renderCharts();
     window.updateUI();
@@ -56,14 +60,13 @@ window.saveNickname = function() {
     const input = document.getElementById("edit-nickname");
     const newNick = input?.value.trim();
     if (!newNick) return alert("닉네임을 입력해 주세요!");
-
     localStorage.setItem("nickname", newNick);
     const displayEl = document.getElementById("display-name");
     if (displayEl) displayEl.innerText = newNick;
     alert("✨ 닉네임이 성공적으로 변경되었습니다!");
 };
 
-// [3. 유튜브 재생 시스템 - 수정됨]
+// [3. 유튜브 재생 시스템 - API 방식 적용]
 window.playNow = function(name) {
     if (window.userPlan === "free" && window.remainSongs <= 0) return alert("😭 무료 곡 소진!");
     window.reservationQueue.unshift(name);
@@ -88,8 +91,7 @@ window.startNextSong = function() {
     const ytContainer = document.getElementById("yt-player");
     const formattedRemain = (window.remainSongs === "∞") ? "∞곡" : window.remainSongs.toString().padStart(2, '0') + "곡";
 
-    // ✅ 핵심 수정: origin 파라미터 추가로 보안 에러 방지
-    const currentOrigin = window.location.origin;
+    // API 방식용 레이아웃 생성
     ytContainer.innerHTML = `
         <div class="karaoke-screen-wrapper" style="position:relative; width:100%; height:100%; background:#000;">
             <div style="position:absolute; top:0; left:0; width:100%; height:60px; background:rgba(0,0,0,0.85); display:flex; align-items:center; justify-content:space-between; padding:0 30px; z-index:1000;">
@@ -99,18 +101,37 @@ window.startNextSong = function() {
                 </div>
                 <div style="color:#ffe600; font-size:32px; font-weight:900;">${formattedRemain}</div>
             </div>
-            <iframe id="main-player" 
-                width="100%" height="100%" 
-                src="https://www.youtube.com/embed/${songData.youtubeId}?autoplay=1&enablejsapi=1&rel=0&origin=${currentOrigin}" 
-                frameborder="0" 
-                allow="autoplay; encrypted-media" 
-                allowfullscreen>
-            </iframe>
+            
+            <div id="player-api-target"></div>
+
             <div style="position:absolute; bottom:30px; right:30px; z-index:1000;">
                 <button onclick="window.exitKaraoke()" style="background:#ff4b2b; color:white; border:none; padding:12px 24px; border-radius:30px; font-weight:bold; cursor:pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">노래 종료</button>
             </div>
         </div>
     `;
+
+    // 유튜브 API를 사용하여 플레이어 생성 (보안 파라미터 최적화)
+    ytPlayer = new YT.Player('player-api-target', {
+        height: '100%',
+        width: '100%',
+        videoId: songData.youtubeId,
+        playerVars: {
+            'autoplay': 1,
+            'controls': 0,
+            'rel': 0,
+            'enablejsapi': 1,
+            'origin': window.location.origin
+        },
+        events: {
+            'onReady': (event) => event.target.playVideo(),
+            'onError': (e) => {
+                console.error("재생 에러 발생:", e.data);
+                if(e.data === 150 || e.data === 101) {
+                    alert("이 영상은 임베딩이 차단되었습니다. 다른 주소로 접속하거나 배포가 필요합니다.");
+                }
+            }
+        }
+    });
 
     window.startVisualizer();
     window.setupScore();
@@ -119,6 +140,7 @@ window.startNextSong = function() {
 // [4. 종료 로직]
 window.exitKaraoke = function() {
     const ytContainer = document.getElementById("yt-player");
+    if(ytPlayer && ytPlayer.destroy) ytPlayer.destroy(); // 플레이어 인스턴스 파괴
     if(ytContainer) ytContainer.innerHTML = ""; 
     document.getElementById("karaoke-view").style.display = "none";
     cancelAnimationFrame(animationId);
