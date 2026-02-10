@@ -6,10 +6,10 @@ window.favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
 
 let currentVolume = 0;
 let currentScoreValue = 0;
-let audioCtx, analyser, dataArray, canvasCtx, animationId, scoreInterval;
-let ytPlayer; // 유튜브 API 인스턴스 저장용
+let audioCtx, analyser, dataArray, animationId, scoreInterval;
+let ytPlayer = null;
 
-// [데이터] 유튜브 ID 업데이트 완료
+// [데이터] 20곡 리스트
 const charts = [
     { title: "[TJ노래방] 에피소드 - 이무진", artist: "이무진", youtubeId: "W8eMnbePtbQ" },
     { title: "[TJ노래방] Love wins all - IU", artist: "아이유", youtubeId: "L2vCogmqKQ0" },
@@ -33,23 +33,21 @@ const charts = [
     { title: "[TJ노래방] 한페이지가될수있게 - DAY6", artist: "DAY6", youtubeId: "J15TV9vUXmI" }
 ];
 
-// [2. 초기화 및 외부 스크립트 로드]
-window.onload = () => {
-    // 유튜브 IFrame API 스크립트 동적 로드 (보안 우회 핵심)
-    const tag = document.createElement('script');
-    tag.src = "https://www.youtube.com/iframe_api";
-    const firstScriptTag = document.getElementsByTagName('script')[0];
-    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+// [2. 유튜브 API 동적 로드]
+var tag = document.createElement('script');
+tag.src = "https://www.youtube.com/iframe_api";
+var firstScriptTag = document.getElementsByTagName('script')[0];
+firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
+window.onYouTubeIframeAPIReady = function() {
+    console.log("✅ YouTube API 준비 완료");
+};
+
+// [3. 초기화]
+window.onload = () => {
     const savedNick = localStorage.getItem("nickname") || "가수님";
     const displayEl = document.getElementById("display-name");
-    const editNickInput = document.getElementById("edit-nickname");
-
     if (displayEl) displayEl.innerText = savedNick;
-    if (editNickInput) editNickInput.value = savedNick;
-
-    const saveBtn = document.querySelector("#section-profile button");
-    if (saveBtn) saveBtn.onclick = window.saveNickname;
 
     window.renderCharts();
     window.updateUI();
@@ -61,12 +59,11 @@ window.saveNickname = function() {
     const newNick = input?.value.trim();
     if (!newNick) return alert("닉네임을 입력해 주세요!");
     localStorage.setItem("nickname", newNick);
-    const displayEl = document.getElementById("display-name");
-    if (displayEl) displayEl.innerText = newNick;
+    document.getElementById("display-name").innerText = newNick;
     alert("✨ 닉네임이 성공적으로 변경되었습니다!");
 };
 
-// [3. 유튜브 재생 시스템 - API 방식 적용]
+// [4. 재생 시스템]
 window.playNow = function(name) {
     if (window.userPlan === "free" && window.remainSongs <= 0) return alert("😭 무료 곡 소진!");
     window.reservationQueue.unshift(name);
@@ -74,11 +71,11 @@ window.playNow = function(name) {
 };
 
 window.startNextSong = function() {
-    if (window.reservationQueue.length === 0) return alert("예약 목록이 비어 있습니다.");
+    if (window.reservationQueue.length === 0) return alert("예약된 곡이 없습니다.");
     
     const songTitle = window.reservationQueue.shift();
     const songData = charts.find(s => s.title === songTitle);
-    if (!songData) return alert("곡 데이터를 찾을 수 없습니다.");
+    if (!songData) return;
 
     window.updateQueueUI();
     if (window.userPlan === "free" && window.remainSongs > 0) {
@@ -89,47 +86,28 @@ window.startNextSong = function() {
 
     document.getElementById("karaoke-view").style.display = "flex";
     const ytContainer = document.getElementById("yt-player");
-    const formattedRemain = (window.remainSongs === "∞") ? "∞곡" : window.remainSongs.toString().padStart(2, '0') + "곡";
+    ytContainer.innerHTML = '<div id="player-api-target"></div>';
 
-    // API 방식용 레이아웃 생성
-    ytContainer.innerHTML = `
-        <div class="karaoke-screen-wrapper" style="position:relative; width:100%; height:100%; background:#000;">
-            <div style="position:absolute; top:0; left:0; width:100%; height:60px; background:rgba(0,0,0,0.85); display:flex; align-items:center; justify-content:space-between; padding:0 30px; z-index:1000;">
-                <div style="color:white; display:flex; align-items:center;">
-                    <span style="color:#00f2fe; font-weight:bold; margin-right:15px;">PLAYING</span>
-                    <span style="font-size:18px;">${songTitle}</span>
-                </div>
-                <div style="color:#ffe600; font-size:32px; font-weight:900;">${formattedRemain}</div>
-            </div>
-            
-            <div id="player-api-target"></div>
+    // 기존 플레이어가 있다면 파괴
+    if (ytPlayer && ytPlayer.destroy) {
+        try { ytPlayer.destroy(); } catch(e) {}
+    }
 
-            <div style="position:absolute; bottom:30px; right:30px; z-index:1000;">
-                <button onclick="window.exitKaraoke()" style="background:#ff4b2b; color:white; border:none; padding:12px 24px; border-radius:30px; font-weight:bold; cursor:pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">노래 종료</button>
-            </div>
-        </div>
-    `;
-
-    // 유튜브 API를 사용하여 플레이어 생성 (보안 파라미터 최적화)
+    // 유튜브 플레이어 생성
     ytPlayer = new YT.Player('player-api-target', {
         height: '100%',
         width: '100%',
         videoId: songData.youtubeId,
         playerVars: {
             'autoplay': 1,
-            'controls': 0,
+            'controls': 1, // 테스트를 위해 컨트롤을 일시적으로 켭니다.
             'rel': 0,
             'enablejsapi': 1,
             'origin': window.location.origin
         },
         events: {
             'onReady': (event) => event.target.playVideo(),
-            'onError': (e) => {
-                console.error("재생 에러 발생:", e.data);
-                if(e.data === 150 || e.data === 101) {
-                    alert("이 영상은 임베딩이 차단되었습니다. 다른 주소로 접속하거나 배포가 필요합니다.");
-                }
-            }
+            'onError': (e) => console.error("YT Error:", e.data)
         }
     });
 
@@ -137,18 +115,15 @@ window.startNextSong = function() {
     window.setupScore();
 };
 
-// [4. 종료 로직]
+// [5. 종료 및 부가 기능]
 window.exitKaraoke = function() {
-    const ytContainer = document.getElementById("yt-player");
-    if(ytPlayer && ytPlayer.destroy) ytPlayer.destroy(); // 플레이어 인스턴스 파괴
-    if(ytContainer) ytContainer.innerHTML = ""; 
+    if(ytPlayer && ytPlayer.destroy) ytPlayer.destroy();
     document.getElementById("karaoke-view").style.display = "none";
     cancelAnimationFrame(animationId);
     if(scoreInterval) clearInterval(scoreInterval);
     window.showResult(currentScoreValue);
 };
 
-// [5. UI 렌더링 및 기능들]
 window.renderCharts = function() {
     const list = document.getElementById("chart-list");
     if(!list) return;
@@ -219,11 +194,9 @@ window.setupScore = function() {
 };
 
 window.showResult = function(score) {
-    const finalScoreEl = document.getElementById("final-score");
-    const scoreModal = document.getElementById("score-modal");
-    let displayScore = score < 20 ? Math.floor(Math.random()*15)+80 : Math.min(score + 75, 100);
-    if(finalScoreEl) finalScoreEl.innerText = displayScore;
-    if(scoreModal) scoreModal.style.display = "flex";
+    let displayScore = score < 10 ? Math.floor(Math.random()*15)+80 : Math.min(score + 85, 100);
+    document.getElementById("final-score").innerText = displayScore;
+    document.getElementById("score-modal").style.display = "flex";
 };
 
 window.closeScore = function() { 
