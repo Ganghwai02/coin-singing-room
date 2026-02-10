@@ -1,5 +1,6 @@
 // [1. 전역 상태 관리]
 window.userPlan = localStorage.getItem("userPlan") || "free";
+// ∞ 표시를 위해 숫자로 변환할 때 예외처리 추가
 window.remainSongs = (window.userPlan === "premium") ? "∞" : parseInt(localStorage.getItem("remainSongs") || 3);
 window.reservationQueue = [];
 window.favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
@@ -43,8 +44,14 @@ window.onYouTubeIframeAPIReady = function() {
     console.log("✅ YouTube API 준비 완료");
 };
 
-// [3. 초기화]
+// [3. 초기화 및 로그인 체크]
 window.onload = () => {
+    // 페이지 이동 없이 레이어만 조절
+    const loginLayer = document.getElementById("login-layer");
+    if (localStorage.getItem("isLoggedIn") === "true") {
+        if (loginLayer) loginLayer.style.display = "none";
+    }
+
     const savedNick = localStorage.getItem("nickname") || "가수님";
     const displayEl = document.getElementById("display-name");
     if (displayEl) displayEl.innerText = savedNick;
@@ -52,6 +59,24 @@ window.onload = () => {
     window.renderCharts();
     window.updateUI();
     window.updateQueueUI();
+};
+
+// [로그인/로그아웃 시스템]
+window.guestLogin = function() {
+    localStorage.setItem("isLoggedIn", "true");
+    localStorage.setItem("nickname", "게스트");
+    // 곡이 없을 때만 기본 3곡 부여
+    if(!localStorage.getItem("remainSongs")) {
+        localStorage.setItem("remainSongs", 3);
+    }
+    location.reload(); 
+};
+
+window.doLogout = function() {
+    if(confirm("로그아웃 하시겠습니까? 곡 수가 초기화됩니다.")) {
+        localStorage.clear();
+        location.reload();
+    }
 };
 
 window.saveNickname = function() {
@@ -65,7 +90,9 @@ window.saveNickname = function() {
 
 // [4. 재생 시스템]
 window.playNow = function(name) {
-    if (window.userPlan === "free" && window.remainSongs <= 0) return alert("😭 무료 곡 소진!");
+    if (window.userPlan === "free" && window.remainSongs <= 0) {
+        return alert("😭 무료 곡 소진! 로그아웃 후 다시 접속해서 충전하세요.");
+    }
     window.reservationQueue.unshift(name);
     window.startNextSong();
 };
@@ -78,36 +105,47 @@ window.startNextSong = function() {
     if (!songData) return;
 
     window.updateQueueUI();
-    if (window.userPlan === "free" && window.remainSongs > 0) {
-        window.remainSongs--;
-        localStorage.setItem("remainSongs", window.remainSongs);
-        window.updateUI();
+    
+    // 무료 요금제 곡 차감 로직
+    if (window.userPlan === "free") {
+        let currentSongs = parseInt(localStorage.getItem("remainSongs") || 0);
+        if (currentSongs > 0) {
+            currentSongs--;
+            window.remainSongs = currentSongs;
+            localStorage.setItem("remainSongs", currentSongs);
+            window.updateUI();
+        }
     }
 
     document.getElementById("karaoke-view").style.display = "flex";
     const ytContainer = document.getElementById("yt-player");
     ytContainer.innerHTML = '<div id="player-api-target"></div>';
 
-    // 기존 플레이어가 있다면 파괴
     if (ytPlayer && ytPlayer.destroy) {
         try { ytPlayer.destroy(); } catch(e) {}
     }
 
-    // 유튜브 플레이어 생성
+    // 유튜브 플레이어 생성 (origin 자동 감지 적용)
     ytPlayer = new YT.Player('player-api-target', {
         height: '100%',
         width: '100%',
         videoId: songData.youtubeId,
         playerVars: {
             'autoplay': 1,
-            'controls': 1, // 테스트를 위해 컨트롤을 일시적으로 켭니다.
+            'controls': 1, // 'Video unavailable' 해결을 위해 컨트롤 활성화
             'rel': 0,
             'enablejsapi': 1,
-            'origin': window.location.origin
+            'origin': window.location.origin // 주소 자동 감지 (중요!)
         },
         events: {
             'onReady': (event) => event.target.playVideo(),
-            'onError': (e) => console.error("YT Error:", e.data)
+            'onError': (e) => {
+                console.error("YT Error:", e.data);
+                if(e.data === 101 || e.data === 150) {
+                    alert("이 영상은 외부 재생이 차단되었습니다. 다른 곡을 선택해 주세요!");
+                    window.exitKaraoke();
+                }
+            }
         }
     });
 
@@ -195,8 +233,10 @@ window.setupScore = function() {
 
 window.showResult = function(score) {
     let displayScore = score < 10 ? Math.floor(Math.random()*15)+80 : Math.min(score + 85, 100);
-    document.getElementById("final-score").innerText = displayScore;
-    document.getElementById("score-modal").style.display = "flex";
+    const scoreEl = document.getElementById("final-score");
+    if (scoreEl) scoreEl.innerText = displayScore;
+    const modal = document.getElementById("score-modal");
+    if (modal) modal.style.display = "flex";
 };
 
 window.closeScore = function() { 
