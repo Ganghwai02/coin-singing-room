@@ -1,16 +1,16 @@
 // [1. 전역 상태 관리]
 window.userPlan = localStorage.getItem("userPlan") || "free";
-// ∞ 표시를 위해 숫자로 변환할 때 예외처리 추가
 window.remainSongs = (window.userPlan === "premium") ? "∞" : parseInt(localStorage.getItem("remainSongs") || 3);
 window.reservationQueue = [];
 window.favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
 
 let currentVolume = 0;
 let currentScoreValue = 0;
+let currentKey = 0;
 let audioCtx, analyser, dataArray, animationId, scoreInterval;
 let ytPlayer = null;
 
-// [데이터] 20곡 리스트
+// [데이터] 인기 차트 리스트
 const charts = [
     { title: "[TJ노래방] 에피소드 - 이무진", artist: "이무진", youtubeId: "W8eMnbePtbQ" },
     { title: "[TJ노래방] Love wins all - IU", artist: "아이유", youtubeId: "L2vCogmqKQ0" },
@@ -40,61 +40,83 @@ tag.src = "https://www.youtube.com/iframe_api";
 var firstScriptTag = document.getElementsByTagName('script')[0];
 firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-window.onYouTubeIframeAPIReady = function() {
-    console.log("✅ YouTube API 준비 완료");
-};
-
-// [3. 초기화 및 로그인 체크]
+// [3. 초기화 시스템]
 window.onload = () => {
-    // 페이지 이동 없이 레이어만 조절
-    const loginLayer = document.getElementById("login-layer");
-    if (localStorage.getItem("isLoggedIn") === "true") {
-        if (loginLayer) loginLayer.style.display = "none";
-    }
+    // 닉네임 설정
+    const savedNick = localStorage.getItem("nickname") || "SingStar!";
+    document.getElementById("display-name").innerText = savedNick;
+    document.getElementById("edit-nickname").value = savedNick === "SingStar!" ? "" : savedNick;
 
-    const savedNick = localStorage.getItem("nickname") || "가수님";
-    const displayEl = document.getElementById("display-name");
-    if (displayEl) displayEl.innerText = savedNick;
+    // 요금제 UI 반영
+    if (window.userPlan === "premium") {
+        document.getElementById("user-status").innerText = "VIP PREMIUM MEMBER";
+        document.getElementById("user-status").style.color = "yellow";
+        document.getElementById("user-card-ui").style.background = "linear-gradient(135deg, #FFD700, #FF8C00)";
+    }
 
     window.renderCharts();
     window.updateUI();
-    window.updateQueueUI();
 };
 
-// [로그인/로그아웃 시스템]
-window.guestLogin = function() {
-    localStorage.setItem("isLoggedIn", "true");
-    localStorage.setItem("nickname", "게스트");
-    // 곡이 없을 때만 기본 3곡 부여
-    if(!localStorage.getItem("remainSongs")) {
-        localStorage.setItem("remainSongs", 3);
+// [4. 사이드바 및 메뉴 관련 함수]
+
+// 메뉴 탭 전환 (HTML의 changeTab)
+window.changeTab = function(el, tabName) {
+    document.querySelectorAll('.nav-menu li').forEach(li => li.classList.remove('active'));
+    el.classList.add('active');
+
+    document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
+    document.getElementById('section-' + tabName).classList.add('active');
+
+    if(tabName === 'favs') window.renderFavorites();
+};
+
+// 랜덤 추천 (HTML의 luckyDraw)
+window.luckyDraw = function() {
+    const randomSong = charts[Math.floor(Math.random() * charts.length)];
+    alert(`🎲 행운의 추천 곡: ${randomSong.title}\n불러보시겠어요?`);
+    window.playNow(randomSong.title);
+};
+
+// 결제 시스템 (HTML의 upgradePlan)
+window.upgradePlan = function() {
+    if(confirm("💎 VIP 프리미엄으로 업그레이드 하시겠습니까?\n모든 곡을 무제한으로 부를 수 있습니다.")) {
+        localStorage.setItem("userPlan", "premium");
+        alert("축하합니다! VIP 멤버십이 활성화되었습니다.");
+        location.reload();
     }
-    location.reload(); 
+};
+
+// 닉네임 변경 (HTML의 updateNickname)
+window.updateNickname = function() {
+    const newNick = document.getElementById("edit-nickname").value.trim();
+    if(!newNick) return alert("변경할 닉네임을 입력해 주세요.");
+    localStorage.setItem("nickname", newNick);
+    document.getElementById("display-name").innerText = newNick;
+    alert("✨ 닉네임이 성공적으로 변경되었습니다.");
 };
 
 window.doLogout = function() {
-    if(confirm("로그아웃 하시겠습니까? 곡 수가 초기화됩니다.")) {
+    if(confirm("정말 로그아웃 하시겠습니까? 데이터가 초기화됩니다.")) {
         localStorage.clear();
         location.reload();
     }
 };
 
-window.saveNickname = function() {
-    const input = document.getElementById("edit-nickname");
-    const newNick = input?.value.trim();
-    if (!newNick) return alert("닉네임을 입력해 주세요!");
-    localStorage.setItem("nickname", newNick);
-    document.getElementById("display-name").innerText = newNick;
-    alert("✨ 닉네임이 성공적으로 변경되었습니다!");
-};
+// [5. 재생 및 컨트롤러 엔진]
 
-// [4. 재생 시스템]
 window.playNow = function(name) {
     if (window.userPlan === "free" && window.remainSongs <= 0) {
-        return alert("😭 무료 곡 소진! 로그아웃 후 다시 접속해서 충전하세요.");
+        return alert("😭 남은 곡 수가 없습니다! 프리미엄을 결제해 보세요.");
     }
     window.reservationQueue.unshift(name);
     window.startNextSong();
+};
+
+window.addToQueue = function(name) {
+    window.reservationQueue.push(name);
+    window.updateQueueUI();
+    alert(`✅ '${name}' 곡이 예약되었습니다.`);
 };
 
 window.startNextSong = function() {
@@ -102,69 +124,73 @@ window.startNextSong = function() {
     
     const songTitle = window.reservationQueue.shift();
     const songData = charts.find(s => s.title === songTitle);
-    if (!songData) return;
-
-    window.updateQueueUI();
     
-    // 무료 요금제 곡 차감 로직
+    window.updateQueueUI();
+
+    // 곡 차감
     if (window.userPlan === "free") {
-        let currentSongs = parseInt(localStorage.getItem("remainSongs") || 0);
-        if (currentSongs > 0) {
-            currentSongs--;
-            window.remainSongs = currentSongs;
-            localStorage.setItem("remainSongs", currentSongs);
-            window.updateUI();
-        }
+        window.remainSongs--;
+        localStorage.setItem("remainSongs", window.remainSongs);
+        window.updateUI();
     }
 
+    // 노래방 화면 열기
     document.getElementById("karaoke-view").style.display = "flex";
     const ytContainer = document.getElementById("yt-player");
     ytContainer.innerHTML = '<div id="player-api-target"></div>';
 
-    if (ytPlayer && ytPlayer.destroy) {
-        try { ytPlayer.destroy(); } catch(e) {}
-    }
-
-    // 유튜브 플레이어 생성 (origin 자동 감지 적용)
     ytPlayer = new YT.Player('player-api-target', {
-        height: '100%',
-        width: '100%',
-        videoId: songData.youtubeId,
-        playerVars: {
-            'autoplay': 1,
-            'controls': 1, // 'Video unavailable' 해결을 위해 컨트롤 활성화
-            'rel': 0,
-            'enablejsapi': 1,
-            'origin': window.location.origin // 주소 자동 감지 (중요!)
-        },
-        events: {
-            'onReady': (event) => event.target.playVideo(),
-            'onError': (e) => {
-                console.error("YT Error:", e.data);
-                if(e.data === 101 || e.data === 150) {
-                    alert("이 영상은 외부 재생이 차단되었습니다. 다른 곡을 선택해 주세요!");
-                    window.exitKaraoke();
-                }
-            }
-        }
+        height: '100%', width: '100%', videoId: songData.youtubeId,
+        playerVars: { 'autoplay': 1, 'controls': 1, 'origin': window.location.origin },
+        events: { 'onReady': (e) => e.target.playVideo() }
     });
 
+    // 컨트롤러 초기화
+    currentKey = 0;
+    document.getElementById("key-val").innerText = "0";
     window.startVisualizer();
     window.setupScore();
 };
 
-// [5. 종료 및 부가 기능]
+// 키 조절 (HTML의 changeKey)
+window.changeKey = function(val) {
+    currentKey += val;
+    document.getElementById("key-val").innerText = currentKey > 0 ? "+" + currentKey : currentKey;
+};
+
+// 클럽 조명 (HTML의 toggleClubMode)
+window.toggleClubMode = function() {
+    const view = document.getElementById("karaoke-view");
+    if (view.classList.contains("club-on")) {
+        view.classList.remove("club-on");
+        view.style.background = "#000";
+    } else {
+        view.classList.add("club-on");
+        alert("🕺 클럽 조명 가동!");
+        // 조명 효과 (깜빡임)
+        let colors = ["#1a0033", "#000033", "#330000", "#003300", "#000"];
+        let i = 0;
+        const disco = setInterval(() => {
+            if(!view.classList.contains("club-on")) { clearInterval(disco); return; }
+            view.style.background = colors[i % colors.length];
+            i++;
+        }, 300);
+    }
+};
+
 window.exitKaraoke = function() {
     if(ytPlayer && ytPlayer.destroy) ytPlayer.destroy();
     document.getElementById("karaoke-view").style.display = "none";
+    document.getElementById("karaoke-view").classList.remove("club-on");
     cancelAnimationFrame(animationId);
     if(scoreInterval) clearInterval(scoreInterval);
     window.showResult(currentScoreValue);
 };
 
+// [6. UI 렌더링 및 부가기능]
+
 window.renderCharts = function() {
     const list = document.getElementById("chart-list");
-    if(!list) return;
     list.innerHTML = charts.map((song, index) => {
         const isFav = window.favorites.includes(song.title);
         return `<div class="chart-card">
@@ -184,11 +210,9 @@ window.renderCharts = function() {
 
 window.renderFavorites = function() {
     const list = document.getElementById("fav-list");
-    if(!list) return;
     const favSongs = charts.filter(song => window.favorites.includes(song.title));
-    list.innerHTML = favSongs.length === 0 ? "<div style='color:#ccc; padding:50px; text-align:center;'>❤️ 애창곡이 비어있습니다.</div>" : 
-        favSongs.map(song => `
-        <div class="chart-card">
+    list.innerHTML = favSongs.length === 0 ? "<div style='color:#ccc; padding:50px; text-align:center;'>❤️ 애창곡이 없습니다.</div>" : 
+        favSongs.map(song => `<div class="chart-card">
             <div class="rank-num">⭐</div>
             <div class="song-info">
                 <div class="song-title">${song.title}</div>
@@ -202,21 +226,6 @@ window.renderFavorites = function() {
         </div>`).join('');
 };
 
-window.updateUI = function() {
-    const songEl = document.getElementById("remain-songs-val");
-    if (songEl) songEl.innerText = window.remainSongs;
-};
-
-window.updateQueueUI = function() {
-    const list = document.getElementById("reserve-list");
-    if (list) list.innerHTML = window.reservationQueue.map((s, i) => `<div class="reserve-item">${i+1}. ${s}</div>`).join('');
-};
-
-window.addToQueue = function(name) {
-    window.reservationQueue.push(name);
-    window.updateQueueUI();
-};
-
 window.toggleFavorite = function(songName) {
     const index = window.favorites.indexOf(songName);
     if (index > -1) window.favorites.splice(index, 1); 
@@ -226,6 +235,14 @@ window.toggleFavorite = function(songName) {
     window.renderFavorites();
 };
 
+window.updateUI = function() {
+    document.getElementById("remain-songs-val").innerText = window.remainSongs;
+};
+
+window.updateQueueUI = function() {
+    document.getElementById("reserve-list").innerHTML = window.reservationQueue.map((s, i) => `<div class="reserve-item">${i+1}. ${s}</div>`).join('');
+};
+
 window.setupScore = function() {
     currentScoreValue = 0;
     scoreInterval = setInterval(() => { if (currentVolume > 40) currentScoreValue += 1; }, 1000);
@@ -233,15 +250,11 @@ window.setupScore = function() {
 
 window.showResult = function(score) {
     let displayScore = score < 10 ? Math.floor(Math.random()*15)+80 : Math.min(score + 85, 100);
-    const scoreEl = document.getElementById("final-score");
-    if (scoreEl) scoreEl.innerText = displayScore;
-    const modal = document.getElementById("score-modal");
-    if (modal) modal.style.display = "flex";
+    document.getElementById("final-score").innerText = displayScore;
+    document.getElementById("score-modal").style.display = "flex";
 };
 
-window.closeScore = function() { 
-    document.getElementById("score-modal").style.display = "none"; 
-};
+window.closeScore = function() { document.getElementById("score-modal").style.display = "none"; };
 
 window.startVisualizer = async function() {
     try {
@@ -260,5 +273,18 @@ window.startVisualizer = async function() {
             currentVolume = sum / dataArray.length;
         };
         draw();
-    } catch (e) { console.log("마이크 연결 실패"); }
+    } catch (e) { console.log("마이크 접근 거부"); }
+};
+
+window.shareToKatalk = function() {
+    const score = document.getElementById("final-score").innerText;
+    Kakao.Share.sendDefault({
+        objectType: 'feed',
+        content: {
+            title: '🎤 SingStar 점수 발표!',
+            description: `방금 부른 노래 점수는 ${score}점입니다!`,
+            imageUrl: 'https://cdn-icons-png.flaticon.com/512/3059/3059551.png',
+            link: { mobileWebUrl: window.location.href, webUrl: window.location.href },
+        }
+    });
 };
