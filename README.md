@@ -1,4 +1,4 @@
-# 나만의 코인노래방 구현~~!!(SingStar)
+# 나만의 코인노래방 구현(SingStar)
 - 주요 기능 (Features)
 1. Real-time Scoring: Web Audio API를 통해 마이크 입력 주파수를 분석, 음정 변화와 성량을 체크하여 점수 산정.
 
