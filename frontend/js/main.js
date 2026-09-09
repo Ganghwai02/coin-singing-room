@@ -151,9 +151,25 @@ window.startNextSong = function() {
     ytContainer.innerHTML = '<div id="player-api-target"></div>';
 
     ytPlayer = new YT.Player('player-api-target', {
-        height: '100%', width: '100%', videoId: songData.youtubeId,
-        playerVars: { 'autoplay': 1, 'controls': 1, 'origin': window.location.origin },
-        events: { 'onReady': (e) => e.target.playVideo() }
+       height: '100%',
+       width: '100%',
+       videoId: songData.youtubeId,
+       playerVars: {
+            'autoplay': 1,
+            'controls': 1,
+            'rel': 0,
+            'enablehsapi': 1,
+            'origin': window.location.origin
+       },
+       events: {
+            'onReady': (e) => e.target.playVideo(),
+            'onError': (e) => {
+                console.error("유튜브 재생 에러 코드:", e.data);
+                if (e.data === 101 || e,data === 150) {
+                    alert("이 영상은 소유자에 의해 외부 재생이 제한되었습니다. 다른 영상 ID로 교체해 주세요.");
+                }
+            }
+       }
     });
 
     // 컨트롤러 초기화
