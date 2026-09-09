@@ -42,6 +42,18 @@ const AuthAPI = {
 };
 
 
+// 로그아웃 처리 함수
+function logout() {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('token');
+
+    alert("로그아웃되었습니다.");
+
+// 2. 로그인 페이지(auth.html)로 이동
+window.location.href = "auth.html";
+}
+
+
 // 내 정보 불러와서 화면에 닉네임 표시하는 함수
 async function loadUserProfile() {
   const token = localStorage.getItem('access_token'); // 저장된 토큰 가져오기
@@ -69,3 +81,4 @@ async function loadUserProfile() {
 
 // 페이지 로드 시 실행
 document.addEventListener('DOMContentLoaded', loadUserProfile);
+

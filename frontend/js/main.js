@@ -1,4 +1,8 @@
 // [1. 전역 상태 관리]
+if (!localStorage.getItem("access_token")) {
+    alert("로그인이 필요합니다.");
+    window.location.href = "auth.html";
+}
 window.userPlan = localStorage.getItem("userPlan") || "free";
 window.remainSongs = (window.userPlan === "premium") ? "∞" : parseInt(localStorage.getItem("remainSongs") || 3);
 window.reservationQueue = [];
@@ -9,6 +13,9 @@ let currentScoreValue = 0;
 let currentKey = 0;
 let audioCtx, analyser, dataArray, animationId, scoreInterval;
 let ytPlayer = null;
+
+
+
 
 // [데이터] 인기 차트 리스트
 const charts = [
@@ -97,9 +104,13 @@ window.updateNickname = function() {
 };
 
 window.doLogout = function() {
-    if(confirm("정말 로그아웃 하시겠습니까? 데이터가 초기화됩니다.")) {
-        localStorage.clear();
-        location.reload();
+    if(confirm("정말 로그아웃 하시겠습니까?")) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('nickname');
+        localStorage.removeItem('userPlan');
+
+        alert("로그아웃되었습니다.");
+        window.location.href = "auth.html";
     }
 };
 

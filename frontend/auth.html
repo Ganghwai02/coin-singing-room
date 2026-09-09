@@ -139,6 +139,7 @@
                 const user = JSON.parse(storedData);
                 if (user.pw === userPw) {
                     // 로그인 성공: 메인에서 쓸 정보들 세팅
+                    localStorage.setItem('access_token', 'user_logged_in');
                     localStorage.setItem('nickname', userId);
                     localStorage.setItem('userPlan', user.plan);
                     
