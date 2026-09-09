@@ -40,3 +40,32 @@ const AuthAPI = {
         }
     }
 };
+
+
+// 내 정보 불러와서 화면에 닉네임 표시하는 함수
+async function loadUserProfile() {
+  const token = localStorage.getItem('access_token'); // 저장된 토큰 가져오기
+  
+  if (!token) return;
+
+  try {
+    const response = await fetch('http://127.0.0.1:8000/api/users/me', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const userData = await response.json();
+      // DB에서 가져온 nickname 적용 (없으면 username으로 대체)
+      document.getElementById('user-nickname').textContent = userData.nickname || userData.username;
+    }
+  } catch (error) {
+    console.error("프로필 정보 로드 실패:", error);
+  }
+}
+
+// 페이지 로드 시 실행
+document.addEventListener('DOMContentLoaded', loadUserProfile);
